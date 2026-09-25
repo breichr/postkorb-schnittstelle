@@ -49,7 +49,15 @@ public final class ElakWerkzeug {
                 probleme++;
                 continue;
             }
-            ElakClient.MappentypInfo info = elak.beschreibe(t.get().name());
+            ElakClient.MappentypInfo info;
+            try {
+                info = elak.beschreibe(t.get().name());
+            } catch (IOException e) {
+                out.println("[!!] Mappentyp '" + gesucht + "' vorhanden (id " + t.get().id() + "), Beschreibung fehlgeschlagen: "
+                        + e.getMessage());
+                probleme++;
+                continue;
+            }
             out.println("[OK] Mappentyp '" + info.name() + "' (id " + info.id() + ")");
             out.println("       Register: " + info.register().stream().map(r -> r.name() + " (" + r.id() + ")").toList());
             out.println("       Felder:   " + info.felder());
@@ -59,7 +67,14 @@ public final class ElakWerkzeug {
             }
         }
 
-        List<ElakClient.Eintrag> wfs = elak.workflows();
+        List<ElakClient.Eintrag> wfs;
+        try {
+            wfs = elak.workflows();
+        } catch (IOException e) {
+            out.println("[!!] Workflows konnten nicht gelesen werden: " + e.getMessage());
+            out.println(++probleme + " Problem(e) – nichts wurde verändert.");
+            return 2;
+        }
         out.println("[OK] " + wfs.size() + " Workflows sichtbar");
         for (String gesucht : List.of(k.workflowDokument(), k.workflowRechnung())) {
             Optional<ElakClient.Eintrag> w = finde(wfs, gesucht);

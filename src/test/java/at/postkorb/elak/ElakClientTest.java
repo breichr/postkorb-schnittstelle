@@ -47,6 +47,9 @@ class ElakClientTest {
     private final List<String> aufrufe = new ArrayList<>();
     private final List<Element> createFiles = new ArrayList<>();
     private String falschesPasswort = null;
+    /** wie DOCUMENTS: jede Antwort liefert eine neue Session-ID im Header, nur die jeweils letzte ist gültig */
+    private boolean rotierendeSession;
+    private int session = 4242;
 
     @BeforeEach
     void start() throws IOException {
@@ -89,6 +92,24 @@ class ElakClientTest {
         Element field = child(child(cf, "fields"), "field");
         assertEquals("Betreff", text(field, "name"));
         assertNull(child(cf, "fileType").getNamespaceURI(), "Kindelemente müssen unqualifiziert sein");
+    }
+
+    @Test
+    void neueSessionIdAusJederAntwortWirdUebernommen() throws IOException {
+        rotierendeSession = true;
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        try (ElakClient c = client()) {
+            assertEquals(0, ElakWerkzeug.pruefen(c, konfig(null), new PrintStream(bos, true, StandardCharsets.UTF_8)),
+                    bos.toString(StandardCharsets.UTF_8));
+        }
+        assertTrue(aufrufe.contains("logout *"), aufrufe.toString());
+    }
+
+    @Test
+    void debugMaskiertGeheimes() {
+        String m = ElakClient.maskiere("<passwd>geheim</passwd><DOCUMENTS:sessionID>4242</DOCUMENTS:sessionID>"
+                + "<session>99</session><data>JVBERi0=</data>");
+        assertEquals("<passwd>***</passwd><DOCUMENTS:sessionID>***</DOCUMENTS:sessionID><session>***</session><data>…</data>", m);
     }
 
     @Test
@@ -161,11 +182,15 @@ class ElakClientTest {
             Element header = child(env, "Header");
             Element sid = header == null ? null : child(header, "sessionID");
             String name = op.getLocalName();
-            if (!name.equals("login") && (sid == null || !"4242".equals(sid.getTextContent()) || !D.equals(sid.getNamespaceURI()))) {
-                fault(ex, 12, "Invalid session");
+            if (!name.equals("login") && (sid == null || !String.valueOf(session).equals(sid.getTextContent())
+                    || !D.equals(sid.getNamespaceURI()))) {
+                fault(ex, 2, "2: session invalid or timed out");
                 return;
             }
-            aufrufe.add(name.equals("login") ? name : name + " " + sid.getTextContent());
+            aufrufe.add(name.equals("login") ? name : name + " " + (rotierendeSession ? "*" : sid.getTextContent()));
+            if (rotierendeSession && !name.equals("login")) {
+                session++;
+            }
             String antwort = switch (name) {
                 case "login" -> {
                     if (falschesPasswort != null && !falschesPasswort.equals(text(op, "passwd"))) {
@@ -196,7 +221,7 @@ class ElakClientTest {
             };
             if (antwort != null) {
                 send(ex, 200, "<SOAP-ENV:Envelope xmlns:SOAP-ENV=\"" + S + "\" xmlns:DOCUMENTS=\"" + D + "\">"
-                        + "<SOAP-ENV:Header><DOCUMENTS:sessionID>4242</DOCUMENTS:sessionID></SOAP-ENV:Header>"
+                        + "<SOAP-ENV:Header><DOCUMENTS:sessionID>" + session + "</DOCUMENTS:sessionID></SOAP-ENV:Header>"
                         + "<SOAP-ENV:Body>" + antwort + "</SOAP-ENV:Body></SOAP-ENV:Envelope>");
             }
         } catch (Exception e) {

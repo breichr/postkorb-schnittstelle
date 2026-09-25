@@ -63,7 +63,8 @@ public final class ElakClient implements AutoCloseable {
     public ElakClient(URI endpoint, Duration timeout) {
         this.endpoint = endpoint;
         this.timeout = timeout;
-        this.http = HttpClient.newBuilder().connectTimeout(timeout).build();
+        // gSOAP-Server von DOCUMENTS sprechen nur HTTP/1.1
+        this.http = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).connectTimeout(timeout).build();
     }
 
     public void login(String benutzer, String mandant, char[] passwort) throws IOException {
@@ -74,10 +75,12 @@ public final class ElakClient implements AutoCloseable {
                 "code", "",
                 "locale", "de"));
         String s = text(antwort, "session");
-        if (s == null || s.isBlank()) {
+        if (session == null && s != null && !s.isBlank()) {
+            session = s.strip(); // kein Session-Header in der Antwort – ID aus dem Body nehmen
+        }
+        if (session == null) {
             throw new IOException("login: keine Session-ID erhalten");
         }
-        session = s.strip();
         LOG.fine("ELAK-Anmeldung erfolgreich");
     }
 
@@ -184,10 +187,10 @@ public final class ElakClient implements AutoCloseable {
     }
 
     private Element call(String operation, String sessionId, BodyWriter writer) throws IOException {
-        if (sessionId == null && !operation.equals("login")) {
+        if (session == null && !operation.equals("login")) {
             throw new IllegalStateException("Nicht am ELAK angemeldet");
         }
-        String xml = envelope(operation, sessionId, writer);
+        String xml = envelope(operation, operation.equals("login") ? null : session, writer);
         HttpRequest req = HttpRequest.newBuilder(endpoint)
                 .timeout(timeout)
                 .header("Content-Type", "application/soap+xml; charset=utf-8; action=\"" + ACTION + operation + "\"")
@@ -200,7 +203,43 @@ public final class ElakClient implements AutoCloseable {
             Thread.currentThread().interrupt();
             throw new IOException(operation + " unterbrochen", e);
         }
-        return antwort(operation, resp.statusCode(), resp.body());
+        debug(operation, xml, resp.body());
+        Element payload = antwort(operation, resp.statusCode(), resp.body());
+        // DOCUMENTS liefert die (ggf. neue) Session-ID in jeder Antwort im Header – für den nächsten Aufruf übernehmen
+        String neu = sessionAusHeader(payload);
+        if (neu != null && !neu.isBlank()) {
+            session = neu.strip();
+        }
+        return payload;
+    }
+
+    static String sessionAusHeader(Element payload) {
+        Element env = payload.getOwnerDocument().getDocumentElement();
+        Element header = child(env, "Header");
+        Element sid = header == null ? null : child(header, "sessionID");
+        return sid == null ? null : sid.getTextContent();
+    }
+
+    /** Mit Umgebungsvariable POSTKORB_ELAK_DEBUG=1: SOAP-Verkehr (ohne Passwort/Session/Dateiinhalt) in elak-debug.log. */
+    private static void debug(String operation, String request, byte[] response) {
+        if (!"1".equals(System.getenv("POSTKORB_ELAK_DEBUG"))) {
+            return;
+        }
+        try {
+            String log = "===== " + java.time.LocalDateTime.now() + " " + operation + "\n--> " + maskiere(request)
+                    + "\n<-- " + maskiere(new String(response, StandardCharsets.UTF_8)) + "\n";
+            java.nio.file.Files.writeString(java.nio.file.Path.of("elak-debug.log"), log, StandardCharsets.UTF_8,
+                    java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
+        } catch (IOException ignored) {
+            // nur Diagnose
+        }
+    }
+
+    static String maskiere(String xml) {
+        return xml.replaceAll("(<passwd>)[^<]*(</passwd>)", "$1***$2")
+                .replaceAll("(<(?:\\w+:)?sessionID>)[^<]*(</)", "$1***$2")
+                .replaceAll("(<session>)[^<]*(</session>)", "$1***$2")
+                .replaceAll("(<data>)[^<]{0,1000000}(</data>)", "$1…$2");
     }
 
     static String envelope(String operation, String sessionId, BodyWriter writer) throws IOException {
