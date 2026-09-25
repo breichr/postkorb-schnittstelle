@@ -1,0 +1,448 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- edited with XMLSpy v2021 rel. 2 (x64) (http://www.altova.com) by Dieter Wolf (BRZ Bundesrechenzentrum GmbH) -->
+<!--	###	
+
+		Die Versionsnummer des Schemas wird immer dann hochgezogen, wenn das Schema  
+		selbst verändert wurde aber auch dann, wenn zumindest eines der importierten 
+		ZUSE-Schemata angepasst wurde.
+
+		###-->
+<xs:schema
+	xmlns:xs="http://www.w3.org/2001/XMLSchema"
+	xmlns:ztyp="http://reference.e-government.gv.at/namespace/zustellung/types/phase2/20240718#"
+	xmlns:aa="http://reference.e-government.gv.at/namespace/zustellung/autoabholung/phase2/20181206#"
+	xmlns:msg="http://reference.e-government.gv.at/namespace/zustellung/msg/phase2/20181206#"
+	xmlns:p="http://reference.e-government.gv.at/namespace/persondata/phase2/20181206#"
+	targetNamespace="http://reference.e-government.gv.at/namespace/zustellung/autoabholung/phase2/20181206#"
+	elementFormDefault="qualified"
+	version="2.4.0-004">
+	<!--### Imports ###-->
+	<!--### ZUSE-SimpleTypes: namespace=http://reference.e-government.gv.at/namespace/zustellung/types/phase2/20240718#" version="2.4.0-004" ###-->
+	<xs:import
+		namespace="http://reference.e-government.gv.at/namespace/zustellung/types/phase2/20240718#"
+		schemaLocation="../zusemsg/zusetypes_p2.xsd"/>
+	<!--### ZUSE-Personendaten: namespace="http://reference.e-government.gv.at/namespace/persondata/phase2/20181206#" version="2.4.0-004" ###-->
+	<xs:import
+		namespace="http://reference.e-government.gv.at/namespace/persondata/phase2/20181206#"
+		schemaLocation="../zusemsg/zuse_mypersondata_en_p2.xsd"/>
+	<!--### ZUSE-Nachricht: namespace="http://reference.e-government.gv.at/namespace/zustellung/msg/phase2/20181206#" version="2.4.0-004" ###-->
+	<xs:import
+		namespace="http://reference.e-government.gv.at/namespace/zustellung/msg/phase2/20181206#"
+		schemaLocation="../zusemsg/zuse_p2.xsd"/>
+	<!--### Definition der Elemente und ComplexTypes ###-->
+	<xs:attribute
+		name="Version"
+		type="msg:VersionNumberType">
+		<xs:annotation>
+			<xs:documentation>Es ist sicherzustellen, dass die Version mit der Versionsnummer der verwendeten zuseaa_p2.xsd übereinstimmt. Bezogen auf das gegenständliche XML-Schema entspricht die Versionsnummer 2.4.0-004.</xs:documentation>
+		</xs:annotation>
+	</xs:attribute>
+	<xs:complexType
+		name="AbstractQueryType"
+		abstract="true"/>
+	<xs:element
+		name="AllDeliveries"
+		type="aa:AllDeliveriesType"
+		substitutionGroup="aa:Query">
+		<xs:annotation>
+			<xs:documentation>Vordefinierte Abfrage: Aus der Menge aller Nachrichten eines Empfängers werden jene Nachrichten selektiert, die dem Filterkriterium entsprechen.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="AllDeliveriesType">
+		<xs:complexContent>
+			<xs:extension base="aa:AbstractQueryType">
+				<xs:sequence>
+					<xs:element
+						ref="msg:MailBox"
+						minOccurs="0"/>
+					<xs:element
+						ref="aa:IncludeFONMessages"
+						minOccurs="0"/>
+					<xs:element ref="aa:Paging"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element
+		name="Attachment"
+		type="aa:AttachmentType"/>
+	<xs:element
+		name="AttachmentID"
+		type="ztyp:token1..256">
+		<xs:annotation>
+			<xs:documentation>UUID als Teil des Standards ISO / IEC 11578:1996 “Information technology – Open Systems Interconnection – Remote Procedure Call (RPC)” und als separater Standard ISO/IEC 9834-8:2005 dokumentiert. Die IETF hat das auf UUID basierende RFC 4122 veröffentlicht.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element
+		name="AttachmentList"
+		type="aa:AttachmentListType">
+		<xs:annotation>
+			<xs:documentation>Der Download der Attachments wird mit Hilfe des Webservices "AttachmentTransferProtocol" bewerkstelligt</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="AttachmentListType">
+		<xs:sequence>
+			<xs:element
+				ref="aa:Attachment"
+				maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Die Daten zu einem Dokument.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="AttachmentType">
+		<xs:sequence>
+			<xs:element ref="aa:AttachmentID"/>
+			<xs:element
+				name="FileName"
+				type="msg:FileNameType">
+				<xs:annotation>
+					<xs:documentation>Dateiname min. 5 Zeichen, max 255 Zeichen</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="msg:MimeType"/>
+			<xs:element
+				ref="msg:DocumentClass"
+				minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Dokumentenklasse als String bzw. Namespace im Fall von XML-Dokumenten im Anhang, um auf Empfängerseite eine automatische Verarbeitung durch ein Workflowsystem realisieren zu können.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element
+				name="Size"
+				type="xs:nonNegativeInteger">
+				<xs:annotation>
+					<xs:documentation>Größe in Bytes</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="msg:CheckSum">
+				<xs:annotation>
+					<xs:documentation>Prüfsumme MUSS in der Regel mitgesendet werden, ist derzeit noch zwecks Abwärtskompatibilität OPTIONAL</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element
+		name="CloseDeliveryRequest"
+		type="aa:SimpleRequestType">
+		<xs:annotation>
+			<xs:documentation>Der Zentralen Anzeige ist explizit mitzuteilen, dass die Nachricht vollständig, ohne Fehler übertragen und auch die weitere Verarbeitung erfolgreich abgeschlossen wurde.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element
+		name="CloseDeliveryResponse"
+		type="aa:SimpleResponseType"/>
+	<xs:complexType name="ContactType">
+		<xs:sequence>
+			<xs:element
+				ref="p:Identification"
+				minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Darf nur bei Behörden und Unternehmen gesetzt sein.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="p:Person"/>
+			<xs:element
+				ref="msg:AdditionalCriteria"
+				minOccurs="0"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element
+		name="DeleteDeliveryRequest"
+		type="aa:SimpleRequestType">
+		<xs:annotation>
+			<xs:documentation>Der Zentralen Anzeige wird mitgeteilt, dass die Nachricht zu löschen ist. Für die Löschung wird vorausgesetzt, dass der Abschluss der Abholung der Nachricht mit "CloseDelivery" angezeigt wurde.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element
+		name="DeleteDeliveryResponse"
+		type="aa:SimpleResponseType"/>
+	<xs:element
+		name="Delivery"
+		type="aa:DeliveryType"/>
+	<xs:element
+		name="DeliveryID"
+		type="ztyp:token1..256">
+		<xs:annotation>
+			<xs:documentation>UUID als Teil des Standards ISO / IEC 11578:1996 “Information technology – Open Systems Interconnection – Remote Procedure Call (RPC)” und als separater Standard ISO/IEC 9834-8:2005 dokumentiert. Die IETF hat das auf UUID basierende RFC 4122 veröffentlicht.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element
+		name="DeliveryMetaData"
+		type="aa:DeliveryMetaDataType"/>
+	<xs:complexType name="DeliveryMetaDataType">
+		<xs:sequence>
+			<xs:element ref="aa:DeliveryID"/>
+			<xs:element
+				ref="msg:MailBox"
+				minOccurs="0"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element
+		name="DeliveryService"
+		type="ztyp:token1..256">
+		<xs:annotation>
+			<xs:documentation>Kennung des Zustellsystems, welches die Nachricht speichert</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="DeliveryType">
+		<xs:sequence>
+			<xs:element ref="aa:DeliveryID"/>
+			<xs:element ref="aa:Sender"/>
+			<xs:element ref="aa:Receiver"/>
+			<xs:element ref="aa:MetaData"/>
+			<xs:element ref="aa:AttachmentList">
+				<xs:annotation>
+					<xs:documentation>Der Download der Attachments wird mit Hilfe des Webservices "AttachmentTransferProtocol" bewerkstelligt. Attachment #1 ist immer der Mailbody</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element
+		name="Error"
+		type="aa:ErrorType"/>
+	<xs:complexType name="ErrorType">
+		<xs:sequence>
+			<xs:element
+				name="ErrorCode"
+				type="ztyp:token1..256">
+				<xs:annotation>
+					<xs:documentation>Enthält im Fehlerfall den Fehlercode.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element
+				name="ErrorMessage"
+				type="ztyp:string1..4096">
+				<xs:annotation>
+					<xs:documentation>Enthält im Fehlerfall die Fehlernachricht.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element
+		name="GetDeliveryRequest"
+		type="aa:SimpleRequestType">
+		<xs:annotation>
+			<xs:documentation>Der Request um eine bestimmte Zustellung abzuholen</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element
+		name="GetDeliveryResponse"
+		type="aa:GetDeliveryResponseType">
+		<xs:annotation>
+			<xs:documentation>Die Antwort auf den Request.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="GetDeliveryResponseType">
+		<xs:choice>
+			<xs:element ref="aa:Delivery"/>
+			<xs:element ref="aa:Error"/>
+		</xs:choice>
+	</xs:complexType>
+	<xs:element
+		name="IncludeFONMessages"
+		type="xs:boolean"
+		default="true">
+		<xs:annotation>
+			<xs:documentation>Deprecated: Abholung von FON Nachrichten wird nicht unterstützt. </xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element
+		name="Limit"
+		default="100">
+		<xs:annotation>
+			<xs:documentation>Gibt an, wie viele Treffer maximal in der Ergebnisliste zurückgegeben werden dürfen. Wertebereich von 1 .. 1000</xs:documentation>
+		</xs:annotation>
+		<xs:simpleType>
+			<xs:restriction base="xs:positiveInteger">
+				<xs:minInclusive value="1"/>
+				<xs:maxInclusive value="1000"/>
+			</xs:restriction>
+		</xs:simpleType>
+	</xs:element>
+	<xs:element name="MetaData">
+		<xs:annotation>
+			<xs:documentation>Metadaten der Zustellung</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="msg:AppDeliveryID">
+					<xs:annotation>
+						<xs:documentation>ID des Zustellstücks beim Absender</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element ref="aa:DeliveryService"/>
+				<xs:element ref="msg:ZSDeliveryID"/>
+				<xs:element
+					ref="msg:Origin"
+					minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>Anwendungsbereich/Urspung der Nachricht</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element ref="msg:DeliveryTimestamp"/>
+				<xs:element ref="msg:Subject"/>
+				<xs:element
+					ref="msg:GZ"
+					minOccurs="0"/>
+				<xs:choice>
+					<xs:element ref="msg:DeliveryQuality">
+						<xs:annotation>
+							<xs:documentation>RSa, non-RSa (Die Werte der Zustellqualität müssen zwingend im Einklang mit dem Zustellgesetz stehen). 
+Die "+"-Qualitäten (RSa+, nonRSa+) werden analog zu den anderen Qualitäten behandelt.
+			</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+					<xs:element ref="msg:PrivateMessageQuality">
+						<xs:annotation>
+							<xs:documentation>Qualität der privatrechtlichen Zusendung ist von der Zustellqualität lt. ZustellG zu unterscheiden:
+• Reply (DARF nur vom Anzeigemodul INTERN verwendet werden)
+• Information
+• RegisteredMail
+• RegisteredMail+
+• ConfirmReceipt
+• ConfirmReceipt+</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+				</xs:choice>
+				<xs:element
+					ref="msg:Reference"
+					minOccurs="0"/>
+				<xs:element
+					ref="msg:Tags"
+					minOccurs="0"/>
+				<xs:element
+					ref="msg:MetadataList"
+					minOccurs="0"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element
+		name="NewDeliveriesOnly"
+		type="aa:NewDeliveriesOnlyType"
+		substitutionGroup="aa:Query">
+		<xs:annotation>
+			<xs:documentation>Vordefinierte Abfrage: Aus der Menge aller Nachrichten des Empfängers, welche noch nicht erfolgreich über die "Automatische Abholung" abgeholt wurden, werden jene Nachrichten selektiert, die dem Filterkriterium entsprechen. Paging ist nicht erforderlich, da MPK solange maximal 100 Treffer zurückgibt, bis alle neuen Nachrichten über die "Automatische Abholung" abgeholt wurden.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="NewDeliveriesOnlyType">
+		<xs:complexContent>
+			<xs:extension base="aa:AbstractQueryType">
+				<xs:sequence>
+					<xs:element
+						ref="msg:MailBox"
+						minOccurs="0"/>
+					<xs:element
+						ref="aa:IncludeFONMessages"
+						minOccurs="0"/>
+					<xs:element ref="aa:Limit"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element
+		name="Paging"
+		type="aa:PagingType"/>
+	<xs:complexType name="PagingType">
+		<xs:annotation>
+			<xs:documentation>Definiert Offset und maximale Anzahl an Ergebnissen beim Abholen von Nachrichten</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element
+				name="Start"
+				default="0">
+				<xs:simpleType>
+					<xs:restriction base="xs:long">
+						<xs:minInclusive value="0"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:element ref="aa:Limit"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element
+		name="Query"
+		type="aa:AbstractQueryType">
+		<xs:annotation>
+			<xs:documentation>Vordefinierte Abfrage</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element
+		name="QueryDeliveriesRequest"
+		type="aa:QueryDeliveriesRequestType">
+		<xs:annotation>
+			<xs:documentation>Der Request um die Liste der verfügbaren Zustellungen abzuholen</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="QueryDeliveriesRequestType">
+		<xs:sequence>
+			<xs:element ref="aa:Query"/>
+		</xs:sequence>
+		<xs:attribute ref="aa:Version"/>
+	</xs:complexType>
+	<xs:element
+		name="QueryDeliveriesResponse"
+		type="aa:QueryDeliveriesResponseType">
+		<xs:annotation>
+			<xs:documentation>Die Antwort auf den Request mit der Liste der Zustellungen.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="QueryDeliveriesResponseType">
+		<xs:choice>
+			<xs:element ref="aa:ResultsList"/>
+			<xs:element ref="aa:Error"/>
+		</xs:choice>
+	</xs:complexType>
+	<xs:element
+		name="Receiver"
+		type="aa:ContactType">
+		<xs:annotation>
+			<xs:documentation>Informationen zum Empfänger</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element
+		name="ResultsList"
+		type="aa:ResultsListType"/>
+	<xs:complexType name="ResultsListType">
+		<xs:sequence>
+			<xs:element
+				name="HitCount"
+				type="xs:nonNegativeInteger">
+				<xs:annotation>
+					<xs:documentation>Gibt an, wieviele Treffer mit der Anfrage insgesamt erzielt wurden</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element
+				ref="aa:DeliveryID"
+				minOccurs="0"
+				maxOccurs="1000"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element
+		name="Sender"
+		type="aa:ContactType">
+		<xs:annotation>
+			<xs:documentation>Informationen zum Sender</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="SimpleRequestType">
+		<xs:sequence>
+			<xs:element ref="aa:DeliveryID"/>
+		</xs:sequence>
+		<xs:attribute ref="aa:Version"/>
+	</xs:complexType>
+	<xs:complexType name="SimpleResponseType">
+		<xs:choice>
+			<xs:element
+				name="Success"
+				type="xs:boolean"
+				default="true">
+				<xs:annotation>
+					<xs:documentation>Verarbeitung war erfolgreich</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="aa:Error"/>
+		</xs:choice>
+	</xs:complexType>
+</xs:schema>

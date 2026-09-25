@@ -1,0 +1,54 @@
+# Konfiguration der USP-Postkorb-Schnittstelle
+# Kopieren nach config\postkorb.properties und anpassen.
+# Relative Pfade beziehen sich auf den Ordner dieser Datei.
+
+# soap = echter Postkorb ("Automatische Abholung"), demo = lokaler Testordner
+gateway=soap
+# Echtsystem:
+soap.endpoint=https://autoabholung.meinpostkorb.brz.gv.at/soap
+# Testzugang des USP (liefert immer dieselben Testdaten, Abschließen/Löschen ändert nichts):
+#soap.endpoint=https://demo-autoabholung.meinpostkorb.brz.gv.at/soap
+
+# Download der Anhänge – Standard laut USP-How-To, auf demselben Host wie soap.endpoint:
+#attachment.url=https://autoabholung.meinpostkorb.brz.gv.at/attachment?delivery_id={deliveryId}&attachment_id={attachmentId}
+
+# Anzahl neuer Zustellungen pro Abfrage (1–1000); es wird automatisch nachgefragt, bis alle abgeholt sind
+query.limit=100
+
+# --- Client-Zertifikat (vom USP-Administrator unter Mein Postkorb > Einstellungen >
+#     Automatische Abholung > "Zertifikat erzeugen" erstellt; .p12 mit selbst gewähltem Passwort) ---
+# Variante A: .p12/.pfx-Datei
+tls.keystore.type=PKCS12
+tls.keystore.path=C:/Postkorb/zertifikat/client.p12
+# Passwort besser über die Umgebungsvariable POSTKORB_KEYSTORE_PASSWORD setzen
+tls.keystore.password=
+# Variante B: Windows-Zertifikatsspeicher des Benutzers (certmgr.msc > Eigene Zertifikate)
+#tls.keystore.type=Windows-MY
+#tls.key.alias=<Anzeigename des Zertifikats>
+
+# Vertrauenswürdige CA für das Serverzertifikat: brz_ca.cer (im USP unter Dokumentation > "Server-Zertifikat").
+# Es wird dann ausschließlich dieser CA vertraut. Alternativ ein Truststore (.p12/.jks,
+# Passwort ggf. über POSTKORB_TRUSTSTORE_PASSWORD).
+tls.truststore.path=brz_ca.cer
+
+# --- Ablage ---
+output.dir=C:/Postkorb/Eingang
+# Liste bereits abgeholter Zustellungen (Standard: <output.dir>\.abgeholt.txt)
+#state.file=C:/Postkorb/abgeholt.txt
+
+# Nach dem Speichern wird jede Zustellung im Postkorb abgeschlossen (CloseDelivery) –
+# danach wird sie nicht mehr als "neu" geliefert. Zusätzlich löschen (DeleteDelivery)?
+# Standard: aus – die Nachrichten bleiben im Postkorb sichtbar.
+delete.after.download=false
+
+# Nur für --loop
+poll.interval.minutes=60
+http.timeout.seconds=60
+
+# Nur für gateway=demo: Ordner mit Unterordnern je Test-Zustellung
+#demo.inbox=C:/Postkorb/demo-inbox
+
+# --- Automatische Updates (nur Programm im Infobereich) ---
+# Täglich wird geprüft, ob es eine neue, signierte Version gibt; installiert wird erst nach Klick.
+#update.enabled=true
+#update.url=https://github.com/breichr/postkorb-schnittstelle/releases/latest/download/

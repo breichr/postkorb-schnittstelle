@@ -1,0 +1,4 @@
+# Öffentlicher Ed25519-Schlüssel für die Prüfung von Updates (Base64, X.509).
+# Wird mit "at.postkorb.update.Signatur erzeugen" erzeugt – siehe README, Abschnitt Updates.
+# Solange hier kein Schlüssel steht, sind automatische Updates deaktiviert.
+MCowBQYDK2VwAyEApGzTuZy4d50SFRehLhhuXy/vGw8QP+cmC0+z3eW3+JI=

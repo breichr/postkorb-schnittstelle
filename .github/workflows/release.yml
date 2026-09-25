@@ -1,0 +1,70 @@
+name: Release
+
+# Nach jedem Merge in main: bauen, testen, signieren und als GitHub-Release veröffentlichen.
+# Das Programm im Infobereich holt sich neue Releases über
+# https://github.com/<repo>/releases/latest/download/{version.txt,postkorb-schnittstelle.jar,.sig}
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Version festlegen
+        id: version
+        run: echo "version=1.0.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+
+      - name: Build und Tests
+        run: mvn -B package -Drevision=${{ steps.version.outputs.version }}
+
+      - name: Signieren
+        env:
+          POSTKORB_SIGNING_KEY: ${{ secrets.POSTKORB_SIGNING_KEY }}
+        run: |
+          if [ -z "$POSTKORB_SIGNING_KEY" ]; then
+            echo "::error::Secret POSTKORB_SIGNING_KEY fehlt – ohne Signatur kein Release (siehe README, Abschnitt Updates)."
+            exit 1
+          fi
+          java -cp target/postkorb-schnittstelle.jar at.postkorb.update.Signatur signieren target/postkorb-schnittstelle.jar
+
+      - name: Release-Dateien zusammenstellen
+        run: |
+          V=${{ steps.version.outputs.version }}
+          mkdir -p dist/Postkorb/config dist/Postkorb/zertifikat
+          cp target/postkorb-schnittstelle.jar target/postkorb-schnittstelle.jar.sig dist/
+          echo "$V" > dist/version.txt
+          cp target/postkorb-schnittstelle.jar windows/*.cmd windows/*.ps1 dist/Postkorb/
+          cp config/postkorb.properties.example config/brz_ca.cer dist/Postkorb/config/
+          cp README.md dist/Postkorb/LIESMICH.md
+          (cd dist && zip -qr "postkorb-windows-$V.zip" Postkorb)
+
+      - name: GitHub-Release erstellen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V=${{ steps.version.outputs.version }}
+          gh release create "v$V" \
+            --title "Version $V" \
+            --generate-notes \
+            dist/version.txt \
+            dist/postkorb-schnittstelle.jar \
+            dist/postkorb-schnittstelle.jar.sig \
+            "dist/postkorb-windows-$V.zip"
