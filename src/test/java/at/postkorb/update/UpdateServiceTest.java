@@ -171,6 +171,13 @@ class UpdateServiceTest {
     }
 
     @Test
+    void eingebauterSchluesselIstGueltig() {
+        java.security.PublicKey k = Signatur.eingebauterSchluessel();
+        assertTrue(k != null, "update-public-key.txt enthält keinen gültigen Ed25519-Schlüssel");
+        assertEquals("MCowBQYDK2VwAyEApGzTuZy4d50SFRehLhhuXy/vGw8QP+cmC0+z3eW3+JI=", Signatur.kodiere(k));
+    }
+
+    @Test
     void installationsskriptEnthaeltRueckfall() {
         String cmd = UpdateInstaller.skript(Path.of("C:/Postkorb/postkorb-schnittstelle.jar"),
                 Path.of("C:/Postkorb/Eingang/updates/postkorb-schnittstelle-1.0.7.jar"),
