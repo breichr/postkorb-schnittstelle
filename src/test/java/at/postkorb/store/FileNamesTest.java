@@ -18,6 +18,14 @@ class FileNamesTest {
     }
 
     @Test
+    void ergaenztEndungAusMimeTyp() {
+        assertEquals("mailbody.txt", FileNames.withExtension("mailbody", "text/plain"));
+        assertEquals("mailbody.html", FileNames.withExtension("mailbody", "text/html; charset=UTF-8"));
+        assertEquals("Bescheid.pdf", FileNames.withExtension("Bescheid.pdf", "application/pdf"));
+        assertEquals("daten", FileNames.withExtension("daten", "application/octet-stream"));
+    }
+
+    @Test
     void reservierteNamen() {
         assertEquals("_CON.pdf", FileNames.sanitize("CON.pdf", "x"));
         assertEquals("_nul", FileNames.sanitize("nul", "x"));

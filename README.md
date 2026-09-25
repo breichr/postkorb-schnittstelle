@@ -18,9 +18,9 @@ Die Schnittstelle nutzt die offizielle Funktion **„Automatische Abholung“** 
 |---|---|---|
 | 1 | `QueryDeliveries` mit `NewDeliveriesOnly` | IDs aller noch nicht abgeschlossenen Zustellungen (max. `query.limit` je Abfrage) |
 | 2 | `GetDelivery` | Metadaten (Absender, Betreff, GZ, Zustellqualität …) und Anhangsliste mit Größe und Prüfsumme |
-| 3 | REST-GET je Anhang | Download; Größe und Prüfsumme (SHA256/SHA512) werden geprüft. Anhang 1 ist immer der Nachrichtentext |
-| 4 | `CloseDelivery` | erst nachdem alles gespeichert ist: meldet dem Postkorb die erfolgreiche Verarbeitung |
-| 5 | `DeleteDelivery` | nur mit `delete.after.download=true` |
+| 3 | REST-GET `/attachment?delivery_id=…&attachment_id=…` | Download je Anhang; Größe und Prüfsumme (SHA256/SHA512) werden geprüft. Anhang 1 ist immer der Nachrichtentext („mailbody“, wird als `mailbody.txt` gespeichert) |
+| 4 | `CloseDelivery` | erst nachdem alles gespeichert ist: markiert die Nachricht als gelesen; sie bleibt im USP sichtbar, kommt aber nicht mehr als „neu“ |
+| 5 | `DeleteDelivery` | nur mit `delete.after.download=true`: die Nachricht ist danach im USP nicht mehr verfügbar |
 
 Schlägt ein Schritt fehl, wird die Zustellung nicht abgeschlossen und beim nächsten Lauf erneut versucht.
 Wurde sie schon gespeichert und nur das Abschließen schlug fehl, wird sie nicht noch einmal heruntergeladen.
@@ -40,8 +40,8 @@ Wurde sie schon gespeichert und nur das Abschließen schlug fehl, wird sie nicht
 | Logging, Exit-Codes, Aufgabenplanung / Dauerbetrieb | ✅ |
 | Demo-Modus ohne Zertifikat | ✅ |
 | SOAP-Anbindung (`ZuseAaSoapGateway`), gegen die offizielle XSD getestet | ✅ |
-| Adresse für den REST-Download der Anhänge (`attachment.url`) | ⏳ aus dem USP-How-To eintragen |
-| Test gegen den echten Postkorb | ⏳ |
+| Download-Adresse und Beispielantwort laut USP-How-To (März 2025) | ✅ |
+| Test gegen den Testzugang bzw. den echten Postkorb | ⏳ braucht euer Client-Zertifikat |
 
 ## Voraussetzungen im USP
 
@@ -52,7 +52,7 @@ Wurde sie schon gespeichert und nur das Abschließen schlug fehl, wird sie nicht
 4. Der USP-Administrator erzeugt dort das **Client-Zertifikat** und lädt es herunter.
    (WSDL/XSD und BRZ-CA sind bereits in diesem Projekt enthalten.)
 
-Anleitung des USP: [How-To Einrichtung der „Automatischen Abholung“](https://www.usp.gv.at/dam/jcr:0909b669-4372-438f-b3fd-c42a37ffc5f4/Mein_Postkorb_AutomatischeAbholung_HowTo.pdf)
+Anleitung des USP (Grundlage dieser Implementierung): [How-To Einrichtung der „Automatischen Abholung“](https://www.usp.gv.at/dam/jcr:0909b669-4372-438f-b3fd-c42a37ffc5f4/Mein_Postkorb_AutomatischeAbholung_HowTo.pdf)
 
 ## Bauen
 
@@ -80,10 +80,8 @@ C:\Postkorb\
   runtime\                     (optional: mit jlink/jpackage gebündeltes Java)
 ```
 
-1. Konfiguration anpassen: `config\postkorb.properties`, insbesondere `tls.keystore.path` und
-   `attachment.url` (die Download-Adresse der Anhänge aus dem How-To des USP, mit den Platzhaltern
-   `{attachmentId}` und ggf. `{deliveryId}`). Das Zertifikats-Passwort am besten als
-   Umgebungsvariable `POSTKORB_KEYSTORE_PASSWORD` setzen.
+1. Konfiguration anpassen: `config\postkorb.properties`, insbesondere `tls.keystore.path` (die .p12-Datei
+   aus dem USP). Das Zertifikats-Passwort am besten als Umgebungsvariable `POSTKORB_KEYSTORE_PASSWORD` setzen.
    Alternativ importiert man das Zertifikat in den Windows-Zertifikatsspeicher des Benutzers
    und setzt `tls.keystore.type=Windows-MY`.
 2. Zertifikat prüfen:
@@ -122,6 +120,20 @@ Ein nachgelagertes System, das `Eingang\` überwacht, sieht deshalb nie halbfert
 | 0 | OK |
 | 1 | Konfiguration, Zertifikat oder Verbindung fehlerhaft |
 | 2 | Einzelne Zustellungen sind fehlgeschlagen (z. B. falsche Prüfsumme); sie werden beim nächsten Lauf erneut versucht |
+
+## Testzugang des USP
+
+Vor dem Echtbetrieb gegen den Testzugang prüfen (dasselbe Client-Zertifikat, eigener Ausgabeordner):
+
+```properties
+soap.endpoint=https://demo-autoabholung.meinpostkorb.brz.gv.at/soap
+output.dir=C:/Postkorb/Test-Eingang
+```
+
+Laut How-To liefert der Testzugang bei „neuen Nachrichten“ immer dieselben 3 Nachrichten;
+Abschließen und Löschen ändern die Testdaten nicht. Ein erfolgreicher Lauf legt also 3 Ordner an,
+jeweils mit `mailbody.txt` und den PDF-Anhängen, und meldet `neu=3`. Jeder weitere Lauf meldet
+`uebersprungen=3`.
 
 ## Ohne Zertifikat testen (Demo-Modus)
 

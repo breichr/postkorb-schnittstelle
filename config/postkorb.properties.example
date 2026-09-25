@@ -4,17 +4,19 @@
 
 # soap = echter Postkorb ("Automatische Abholung"), demo = lokaler Testordner
 gateway=soap
+# Echtsystem:
 soap.endpoint=https://autoabholung.meinpostkorb.brz.gv.at/soap
+# Testzugang des USP (liefert immer dieselben Testdaten, Abschließen/Löschen ändert nichts):
+#soap.endpoint=https://demo-autoabholung.meinpostkorb.brz.gv.at/soap
 
-# Adresse für den REST-Download der Anhänge ("AttachmentTransferProtocol") laut USP-How-To.
-# Platzhalter: {attachmentId} (Pflicht) und {deliveryId}. Die genaue Adresse steht im How-To-PDF
-# im Abschnitt zum Download der Attachments, sie ist NICHT in der WSDL enthalten.
-attachment.url=
+# Download der Anhänge – Standard laut USP-How-To, auf demselben Host wie soap.endpoint:
+#attachment.url=https://autoabholung.meinpostkorb.brz.gv.at/attachment?delivery_id={deliveryId}&attachment_id={attachmentId}
 
 # Anzahl neuer Zustellungen pro Abfrage (1–1000); es wird automatisch nachgefragt, bis alle abgeholt sind
 query.limit=100
 
-# --- Client-Zertifikat (im USP unter Mein Postkorb > Einstellungen > Automatische Abholung erzeugt) ---
+# --- Client-Zertifikat (vom USP-Administrator unter Mein Postkorb > Einstellungen >
+#     Automatische Abholung > "Zertifikat erzeugen" erstellt; .p12 mit selbst gewähltem Passwort) ---
 # Variante A: .p12/.pfx-Datei
 tls.keystore.type=PKCS12
 tls.keystore.path=C:/Postkorb/zertifikat/client.p12
@@ -24,7 +26,7 @@ tls.keystore.password=
 #tls.keystore.type=Windows-MY
 #tls.key.alias=<Anzeigename des Zertifikats>
 
-# Vertrauenswürdige CA für das Serverzertifikat: die BRZ-StammCA aus dem USP (brz_ca.cer).
+# Vertrauenswürdige CA für das Serverzertifikat: brz_ca.cer (im USP unter Dokumentation > "Server-Zertifikat").
 # Es wird dann ausschließlich dieser CA vertraut. Alternativ ein Truststore (.p12/.jks,
 # Passwort ggf. über POSTKORB_TRUSTSTORE_PASSWORD).
 tls.truststore.path=brz_ca.cer

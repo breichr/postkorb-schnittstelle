@@ -68,7 +68,7 @@ public final class DocumentStore {
             int n = 0;
             for (Anhang a : z.anhaenge()) {
                 n++;
-                String name = unique(FileNames.sanitize(a.dateiname(), "anhang_" + n), used);
+                String name = unique(FileNames.sanitize(FileNames.withExtension(a.dateiname(), a.mimeType()), "anhang_" + n), used);
                 MessageDigest md = a.pruefsumme() != null ? Pruefsumme.digest(a.pruefsummenAlgorithmus()) : null;
                 long bytes;
                 try (InputStream raw = source.open(a);

@@ -32,6 +32,14 @@ public record Config(
         Path demoInbox) {
 
     public static final URI DEFAULT_SOAP_ENDPOINT = URI.create("https://autoabholung.meinpostkorb.brz.gv.at/soap");
+    /** Testzugang laut USP-How-To: liefert immer dieselben Mockdaten, Close/Delete ändern nichts. */
+    public static final URI DEMO_SOAP_ENDPOINT = URI.create("https://demo-autoabholung.meinpostkorb.brz.gv.at/soap");
+
+    /** Download-Adresse der Anhänge laut USP-How-To, auf demselben Host wie der SOAP-Endpoint. */
+    public static String defaultAttachmentUrl(URI soapEndpoint) {
+        return soapEndpoint.getScheme() + "://" + soapEndpoint.getRawAuthority()
+                + "/attachment?delivery_id={deliveryId}&attachment_id={attachmentId}";
+    }
 
     public static Config load(Path file) throws IOException {
         Properties p = new Properties();
@@ -41,12 +49,13 @@ public record Config(
         Path base = file.toAbsolutePath().getParent();
 
         String gateway = get(p, "gateway", "soap");
+        URI endpoint = URI.create(get(p, "soap.endpoint", DEFAULT_SOAP_ENDPOINT.toString()));
         Path outputDir = path(base, get(p, "output.dir", "downloads"));
 
         return new Config(
                 gateway,
-                URI.create(get(p, "soap.endpoint", DEFAULT_SOAP_ENDPOINT.toString())),
-                get(p, "attachment.url", null),
+                endpoint,
+                get(p, "attachment.url", defaultAttachmentUrl(endpoint)),
                 Integer.parseInt(get(p, "query.limit", "100")),
                 get(p, "tls.keystore.type", "PKCS12"),
                 optionalPath(base, get(p, "tls.keystore.path", null)),

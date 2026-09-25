@@ -1,6 +1,7 @@
 package at.postkorb.store;
 
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -13,8 +14,31 @@ public final class FileNames {
             "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
             "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9");
     static final int MAX_LENGTH = 120;
+    private static final Map<String, String> EXTENSIONS = Map.of(
+            "text/plain", ".txt",
+            "text/html", ".html",
+            "application/pdf", ".pdf",
+            "application/xml", ".xml",
+            "text/xml", ".xml",
+            "application/zip", ".zip",
+            "image/jpeg", ".jpg",
+            "image/png", ".png",
+            "image/tiff", ".tif");
 
     private FileNames() {
+    }
+
+    /**
+     * Ergänzt eine fehlende Dateiendung anhand des MIME-Typs – der Postkorb liefert z. B.
+     * den Nachrichtentext als "mailbody" (text/plain).
+     */
+    public static String withExtension(String name, String mimeType) {
+        if (name == null || mimeType == null || name.lastIndexOf('.') > 0) {
+            return name;
+        }
+        String mime = mimeType.split(";")[0].strip().toLowerCase(Locale.ROOT);
+        String ext = EXTENSIONS.get(mime);
+        return ext != null ? name + ext : name;
     }
 
     public static String sanitize(String name, String fallback) {

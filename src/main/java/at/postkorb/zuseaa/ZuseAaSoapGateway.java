@@ -91,8 +91,8 @@ public final class ZuseAaSoapGateway implements PostkorbGateway {
 
     public ZuseAaSoapGateway(URI endpoint, String attachmentUrlTemplate, int limit, Duration timeout, SSLContext ssl) {
         if (attachmentUrlTemplate == null || !attachmentUrlTemplate.contains("{attachmentId}")) {
-            throw new IllegalArgumentException("attachment.url fehlt oder enthält keinen Platzhalter {attachmentId} "
-                    + "(Adresse für den REST-Download der Anhänge laut USP-How-To)");
+            throw new IllegalArgumentException("attachment.url muss den Platzhalter {attachmentId} enthalten, z. B. "
+                    + Config.defaultAttachmentUrl(endpoint));
         }
         if (limit < 1 || limit > 1000) {
             throw new IllegalArgumentException("query.limit muss zwischen 1 und 1000 liegen");

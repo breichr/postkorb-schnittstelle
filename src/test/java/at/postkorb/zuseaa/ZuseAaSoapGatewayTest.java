@@ -42,6 +42,7 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 
 import at.postkorb.PostkorbAbholer;
+import at.postkorb.config.Config;
 import at.postkorb.gateway.Zustellung;
 import at.postkorb.store.DocumentStore;
 import at.postkorb.store.ProcessedStore;
@@ -56,6 +57,77 @@ class ZuseAaSoapGatewayTest {
     private static final String MSG = "http://reference.e-government.gv.at/namespace/zustellung/msg/phase2/20181206#";
     private static final String P = "http://reference.e-government.gv.at/namespace/persondata/phase2/20181206#";
     private static Schema schema;
+
+    /** Beispielantwort aus dem USP-How-To "Einrichtung der Automatischen Abholung" (Stand März 2025). */
+    private static final String HOWTO_ID = "434c18a0-b142-11ea-87f1-eb357aa289dc";
+    private static final String HOWTO_GET_DELIVERY_RESPONSE = """
+            <env:Envelope xmlns:env="http://www.w3.org/2003/05/soap-envelope">
+                <env:Header/>
+                <env:Body>
+                    <ns2:GetDeliveryResponse
+                            xmlns:ns2="http://reference.e-government.gv.at/namespace/zustellung/autoabholung/phase2/20181206#"
+                            xmlns:ns3="http://reference.e-government.gv.at/namespace/persondata/phase2/20181206#"
+                            xmlns:ns4="http://reference.e-government.gv.at/namespace/zustellung/msg/phase2/20181206#">
+                        <ns2:Delivery>
+                            <ns2:DeliveryID>434c18a0-b142-11ea-87f1-eb357aa289dc</ns2:DeliveryID>
+                            <ns2:Sender>
+                                <ns3:Identification>
+                                    <ns3:Value>9110002628957</ns3:Value>
+                                    <ns3:Type>urn:publicid:gv.at:baseid+XGLN</ns3:Type>
+                                </ns3:Identification>
+                                <ns3:CorporateBody>
+                                    <ns3:FullName>Bundeskanzleramt</ns3:FullName>
+                                </ns3:CorporateBody>
+                                <ns4:AdditionalCriteria/>
+                            </ns2:Sender>
+                            <ns2:Receiver>
+                                <ns3:Identification>
+                                    <ns3:Value>123456a</ns3:Value>
+                                    <ns3:Type>urn:publicid:gv.at:baseid+XFN</ns3:Type>
+                                </ns3:Identification>
+                                <ns3:CorporateBody>
+                                    <ns3:FullName>Testfirma GmbH</ns3:FullName>
+                                </ns3:CorporateBody>
+                                <ns4:AdditionalCriteria/>
+                            </ns2:Receiver>
+                            <ns2:MetaData>
+                                <ns4:AppDeliveryID>appid-12345678990u9</ns4:AppDeliveryID>
+                                <ns2:DeliveryService>Meinpostkorb</ns2:DeliveryService>
+                                <ns4:ZSDeliveryID>6bd6d62e-b45e-11ea-a592-07a65621d367</ns4:ZSDeliveryID>
+                                <ns4:Origin>
+                                    <ns4:ParticipantID>AT:X:999-MPK</ns4:ParticipantID>
+                                </ns4:Origin>
+                                <ns4:DeliveryTimestamp>2020-05-26T08:40:00.000+02:00</ns4:DeliveryTimestamp>
+                                <ns4:Subject>Test-Nachricht: 03</ns4:Subject>
+                                <ns4:DeliveryQuality>nonRSa</ns4:DeliveryQuality>
+                            </ns2:MetaData>
+                            <ns2:AttachmentList>
+                                <ns2:Attachment>
+                                    <ns2:AttachmentID>bae5afd0-b141-11ea-8a48-3748f327b4a2</ns2:AttachmentID>
+                                    <ns2:FileName>mailbody</ns2:FileName>
+                                    <ns4:MimeType>text/plain</ns4:MimeType>
+                                    <ns2:Size>21</ns2:Size>
+                                    <ns4:CheckSum>
+                                        <ns4:AlgorithmID>SHA512</ns4:AlgorithmID>
+                                        <ns4:Value>AB/lMiXFPZevSMB3dbBFkF8hFwT2t94ooQtb0Jt0pO0H4vh+3jJb2Yszvepc4io3YX5483/MN7QAHbKJADc7oQ==</ns4:Value>
+                                    </ns4:CheckSum>
+                                </ns2:Attachment>
+                                <ns2:Attachment>
+                                    <ns2:AttachmentID>bae8b9aa-b141-11ea-a50d-475cdc4d30d2</ns2:AttachmentID>
+                                    <ns2:FileName>Example.pdf</ns2:FileName>
+                                    <ns4:MimeType>application/pdf</ns4:MimeType>
+                                    <ns2:Size>13158</ns2:Size>
+                                    <ns4:CheckSum>
+                                        <ns4:AlgorithmID>SHA512</ns4:AlgorithmID>
+                                        <ns4:Value>jFmjL5w+wqLvPw4K7Xd2jlMHIoCLGZmhYzPaRhxE+npFz8Xp/uvEsiWNJPnuhi3QfxeIpfbQiJntbfyh1/A3tw==</ns4:Value>
+                                    </ns4:CheckSum>
+                                </ns2:Attachment>
+                            </ns2:AttachmentList>
+                        </ns2:Delivery>
+                    </ns2:GetDeliveryResponse>
+                </env:Body>
+            </env:Envelope>
+            """;
 
     @TempDir
     Path tmp;
@@ -77,10 +149,13 @@ class ZuseAaSoapGatewayTest {
         dateien.put("att-2", "%PDF-1.7 Bescheid".getBytes(StandardCharsets.UTF_8));
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/soap", this::soap);
-        server.createContext("/attachment/", ex -> {
-            byte[] data = dateien.get(ex.getRequestURI().getPath().substring("/attachment/".length()));
+        server.createContext("/attachment", ex -> {
+            // Format laut How-To: /attachment?delivery_id=<uuid>&attachment_id=<uuid>, sonst HTTP 400
+            String q = ex.getRequestURI().getQuery();
+            byte[] data = q != null && q.startsWith("delivery_id=d-1&attachment_id=")
+                    ? dateien.get(q.substring(q.indexOf("attachment_id=") + "attachment_id=".length())) : null;
             if (data == null) {
-                ex.sendResponseHeaders(404, -1);
+                ex.sendResponseHeaders(400, -1);
             } else {
                 ex.sendResponseHeaders(200, data.length);
                 try (OutputStream os = ex.getResponseBody()) {
@@ -99,8 +174,8 @@ class ZuseAaSoapGatewayTest {
 
     private ZuseAaSoapGateway gateway() {
         String base = "http://127.0.0.1:" + server.getAddress().getPort();
-        return new ZuseAaSoapGateway(URI.create(base + "/soap"), base + "/attachment/{attachmentId}?d={deliveryId}",
-                100, Duration.ofSeconds(5), null);
+        URI endpoint = URI.create(base + "/soap");
+        return new ZuseAaSoapGateway(endpoint, Config.defaultAttachmentUrl(endpoint), 100, Duration.ofSeconds(5), null);
     }
 
     @Test
@@ -117,7 +192,7 @@ class ZuseAaSoapGatewayTest {
             dir = s.filter(Files::isDirectory).filter(p -> p.getFileName().toString().endsWith("_d-1")).findFirst().orElseThrow();
         }
         assertEquals("2026-09-24_Finanzamt Österreich_d-1", dir.getFileName().toString().replaceFirst("^\\d{4}-\\d{2}-\\d{2}", "2026-09-24"));
-        assertTrue(Files.exists(dir.resolve("Nachricht.txt")));
+        assertTrue(Files.exists(dir.resolve("mailbody.txt")));
         assertTrue(Files.exists(dir.resolve("Bescheid 2025.pdf")));
         String meta = Files.readString(dir.resolve("zustellung.txt"));
         assertTrue(meta.contains("Betreff: Einkommensteuerbescheid 2025"), meta);
@@ -135,14 +210,43 @@ class ZuseAaSoapGatewayTest {
         assertEquals(2, z.anhaenge().size());
         assertEquals("SHA256", z.anhaenge().get(1).pruefsummenAlgorithmus());
         assertEquals(17L, z.anhaenge().get(1).groesse());
-        assertTrue(z.anhaenge().get(1).downloadUri().toString().endsWith("/attachment/att-2?d=d-1"));
+        assertTrue(z.anhaenge().get(1).downloadUri().toString().endsWith("/attachment?delivery_id=d-1&attachment_id=att-2"));
+    }
+
+    @Test
+    void beispielAntwortAusDemHowTo() throws IOException {
+        Zustellung z = gateway().abrufen(HOWTO_ID);
+        assertEquals("Bundeskanzleramt", z.absender());
+        assertEquals("Test-Nachricht: 03", z.betreff());
+        assertEquals(Instant.parse("2020-05-26T06:40:00Z"), z.eingang());
+        assertEquals("nonRSa", z.weitereAngaben().get("Zustellqualität"));
+        assertEquals("Testfirma GmbH", z.weitereAngaben().get("Empfänger"));
+        assertEquals(2, z.anhaenge().size());
+        assertEquals("mailbody", z.anhaenge().get(0).dateiname());
+        assertEquals("text/plain", z.anhaenge().get(0).mimeType());
+        assertEquals(21L, z.anhaenge().get(0).groesse());
+        assertEquals("SHA512", z.anhaenge().get(0).pruefsummenAlgorithmus());
+        assertEquals("AB/lMiXFPZevSMB3dbBFkF8hFwT2t94ooQtb0Jt0pO0H4vh+3jJb2Yszvepc4io3YX5483/MN7QAHbKJADc7oQ==",
+                z.anhaenge().get(0).pruefsumme());
+        assertEquals("Example.pdf", z.anhaenge().get(1).dateiname());
+        assertTrue(z.anhaenge().get(1).downloadUri().toString().endsWith(
+                "/attachment?delivery_id=434c18a0-b142-11ea-87f1-eb357aa289dc&attachment_id=bae8b9aa-b141-11ea-a50d-475cdc4d30d2"));
+    }
+
+    @Test
+    void attachmentUrlLautHowTo() {
+        assertEquals("https://autoabholung.meinpostkorb.brz.gv.at/attachment?delivery_id={deliveryId}&attachment_id={attachmentId}",
+                Config.defaultAttachmentUrl(Config.DEFAULT_SOAP_ENDPOINT));
+        assertEquals("https://demo-autoabholung.meinpostkorb.brz.gv.at/attachment?delivery_id={deliveryId}&attachment_id={attachmentId}",
+                Config.defaultAttachmentUrl(Config.DEMO_SOAP_ENDPOINT));
     }
 
     @Test
     void fehlerDesPostkorbsWirdGemeldet() {
         fehlerBeiClose = true;
         ZuseAaException e = assertThrows(ZuseAaException.class, () -> gateway().abschliessen("d-1"));
-        assertEquals("AA-4711", e.errorCode());
+        assertEquals("000", e.errorCode());
+        assertTrue(e.getMessage().contains("Unkown uuid."), e.getMessage());
     }
 
     @Test
@@ -183,6 +287,11 @@ class ZuseAaSoapGatewayTest {
                     yield sb.append("</aa:ResultsList></aa:QueryDeliveriesResponse>").toString();
                 }
                 case "GetDeliveryRequest" -> {
+                    if (HOWTO_ID.equals(id)) {
+                        schema.newValidator().validate(new DOMSource(payload(HOWTO_GET_DELIVERY_RESPONSE)));
+                        send(ex, 200, HOWTO_GET_DELIVERY_RESPONSE);
+                        yield null;
+                    }
                     if (!"d-1".equals(id)) {
                         fault(ex, "Unbekannte Zustellung");
                         yield null;
@@ -191,8 +300,8 @@ class ZuseAaSoapGatewayTest {
                 }
                 case "CloseDeliveryRequest" -> {
                     if (fehlerBeiClose) {
-                        yield "<aa:CloseDeliveryResponse><aa:Error><aa:ErrorCode>AA-4711</aa:ErrorCode>"
-                                + "<aa:ErrorMessage>Test</aa:ErrorMessage></aa:Error></aa:CloseDeliveryResponse>";
+                        yield "<aa:CloseDeliveryResponse><aa:Error><aa:ErrorCode>000</aa:ErrorCode>"
+                                + "<aa:ErrorMessage>Unkown uuid.</aa:ErrorMessage></aa:Error></aa:CloseDeliveryResponse>";
                     }
                     offen.remove(id);
                     yield "<aa:CloseDeliveryResponse><aa:Success>true</aa:Success></aa:CloseDeliveryResponse>";
@@ -221,7 +330,7 @@ class ZuseAaSoapGatewayTest {
                 + "<msg:Subject>Einkommensteuerbescheid 2025</msg:Subject><msg:GZ>GZ-123/2026</msg:GZ>"
                 + "<msg:DeliveryQuality>RSa</msg:DeliveryQuality></aa:MetaData>"
                 + "<aa:AttachmentList>"
-                + "<aa:Attachment><aa:AttachmentID>att-1</aa:AttachmentID><aa:FileName>Nachricht.txt</aa:FileName>"
+                + "<aa:Attachment><aa:AttachmentID>att-1</aa:AttachmentID><aa:FileName>mailbody</aa:FileName>"
                 + "<msg:MimeType>text/plain</msg:MimeType><aa:Size>" + dateien.get("att-1").length + "</aa:Size>"
                 + "<msg:CheckSum><msg:AlgorithmID>SHA256</msg:AlgorithmID><msg:Value>"
                 + Base64.getEncoder().encodeToString(MessageDigest.getInstance("SHA-256").digest(dateien.get("att-1")))
