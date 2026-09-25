@@ -11,8 +11,11 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Base64;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -32,9 +35,9 @@ class PostkorbAbholerTest {
 
     static final class FakeGateway implements PostkorbGateway {
         final List<Zustellung> liste = new ArrayList<>();
-        final List<String> bestaetigt = new ArrayList<>();
+        final List<String> geloescht = new ArrayList<>();
         String kaputterAnhang;
-        boolean bestaetigungSchlaegtFehl;
+        boolean loeschenSchlaegtFehl;
 
         @Override
         public List<Zustellung> abholbereit() {
@@ -46,16 +49,20 @@ class PostkorbAbholerTest {
             if (a.dateiname().equals(kaputterAnhang)) {
                 throw new IOException("HTTP 500");
             }
-            return new ByteArrayInputStream(("Inhalt " + a.dateiname()).getBytes(StandardCharsets.UTF_8));
+            return new ByteArrayInputStream(inhalt(a.dateiname()));
         }
 
         @Override
-        public void bestaetigeAbholung(Zustellung z) throws IOException {
-            if (bestaetigungSchlaegtFehl) {
+        public void loescheZustellung(Zustellung z) throws IOException {
+            if (loeschenSchlaegtFehl) {
                 throw new IOException("SOAP-Fault");
             }
-            bestaetigt.add(z.id());
+            geloescht.add(z.id());
         }
+    }
+
+    static byte[] inhalt(String dateiname) {
+        return ("Inhalt " + dateiname).getBytes(StandardCharsets.UTF_8);
     }
 
     private static Zustellung zustellung(String id, String... dateien) {
@@ -64,7 +71,11 @@ class PostkorbAbholerTest {
     }
 
     private PostkorbAbholer abholer(FakeGateway gw) throws IOException {
-        return new PostkorbAbholer(gw, new DocumentStore(tmp.resolve("out")), new ProcessedStore(tmp.resolve("state.txt")), true);
+        return abholer(gw, true);
+    }
+
+    private PostkorbAbholer abholer(FakeGateway gw, boolean loeschen) throws IOException {
+        return new PostkorbAbholer(gw, new DocumentStore(tmp.resolve("out")), new ProcessedStore(tmp.resolve("state.txt")), loeschen);
     }
 
     private long ordner() throws IOException {
@@ -74,14 +85,14 @@ class PostkorbAbholerTest {
     }
 
     @Test
-    void speichertUndBestaetigt() throws IOException {
+    void speichertUndLoescht() throws IOException {
         FakeGateway gw = new FakeGateway();
         gw.liste.add(zustellung("Z1", "Bescheid.pdf", "Bescheid.pdf", "Beilage:1.pdf"));
 
         PostkorbAbholer.Ergebnis r = abholer(gw).durchlauf();
 
         assertEquals(new PostkorbAbholer.Ergebnis(1, 0, 0), r);
-        assertEquals(List.of("Z1"), gw.bestaetigt);
+        assertEquals(List.of("Z1"), gw.geloescht);
         Path dir;
         try (Stream<Path> s = Files.list(tmp.resolve("out"))) {
             dir = s.filter(p -> p.getFileName().toString().endsWith("_Z1")).findFirst().orElseThrow();
@@ -93,7 +104,7 @@ class PostkorbAbholerTest {
     }
 
     @Test
-    void fehlerhafterDownloadWirdNichtBestaetigtUndHinterlaesstNichts() throws IOException {
+    void fehlerhafterDownloadWirdNichtGeloeschtUndHinterlaesstNichts() throws IOException {
         FakeGateway gw = new FakeGateway();
         gw.liste.add(zustellung("Z1", "a.pdf", "b.pdf"));
         gw.liste.add(zustellung("Z2", "c.pdf"));
@@ -102,22 +113,49 @@ class PostkorbAbholerTest {
         PostkorbAbholer.Ergebnis r = abholer(gw).durchlauf();
 
         assertEquals(new PostkorbAbholer.Ergebnis(1, 0, 1), r);
-        assertEquals(List.of("Z2"), gw.bestaetigt);
+        assertEquals(List.of("Z2"), gw.geloescht);
         assertEquals(1, ordner());
         assertFalse(Files.readString(tmp.resolve("state.txt")).contains("Z1"));
     }
 
     @Test
-    void keinDoppelterDownloadWennBestaetigungFehlschlaegt() throws IOException {
+    void keinDoppelterDownloadWennLoeschenFehlschlaegt() throws IOException {
         FakeGateway gw = new FakeGateway();
         gw.liste.add(zustellung("Z1", "a.pdf"));
-        gw.bestaetigungSchlaegtFehl = true;
+        gw.loeschenSchlaegtFehl = true;
 
         assertEquals(new PostkorbAbholer.Ergebnis(1, 0, 1), abholer(gw).durchlauf());
 
-        gw.bestaetigungSchlaegtFehl = false;
+        gw.loeschenSchlaegtFehl = false;
         assertEquals(new PostkorbAbholer.Ergebnis(0, 1, 0), abholer(gw).durchlauf());
-        assertEquals(List.of("Z1"), gw.bestaetigt);
+        assertEquals(List.of("Z1"), gw.geloescht);
+        assertEquals(1, ordner());
+    }
+
+    @Test
+    void ohneLoeschenBleibtZustellungImPostkorbUndWirdNichtDoppeltGeladen() throws IOException {
+        FakeGateway gw = new FakeGateway();
+        gw.liste.add(zustellung("Z1", "a.pdf"));
+
+        assertEquals(new PostkorbAbholer.Ergebnis(1, 0, 0), abholer(gw, false).durchlauf());
+        assertEquals(new PostkorbAbholer.Ergebnis(0, 1, 0), abholer(gw, false).durchlauf());
+        assertTrue(gw.geloescht.isEmpty());
+        assertEquals(1, ordner());
+    }
+
+    @Test
+    void pruefsummeWirdGeprueft() throws Exception {
+        String ok = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(inhalt("a.pdf")));
+        String okBase64 = Base64.getEncoder().encodeToString(MessageDigest.getInstance("SHA-256").digest(inhalt("b.pdf")));
+        FakeGateway gw = new FakeGateway();
+        gw.liste.add(new Zustellung("Z1", "BMF", "Bescheid", Instant.now(), List.of(
+                new Anhang("a.pdf", "application/pdf", URI.create("https://x/a"), ok.toUpperCase(), "http://www.w3.org/2001/04/xmlenc#sha256"),
+                new Anhang("b.pdf", "application/pdf", URI.create("https://x/b"), okBase64, "SHA256"))));
+        gw.liste.add(new Zustellung("Z2", "BMF", "Bescheid", Instant.now(), List.of(
+                new Anhang("c.pdf", "application/pdf", URI.create("https://x/c"), ok, "SHA-256"))));
+
+        assertEquals(new PostkorbAbholer.Ergebnis(1, 0, 1), abholer(gw).durchlauf());
+        assertEquals(List.of("Z1"), gw.geloescht);
         assertEquals(1, ordner());
     }
 }

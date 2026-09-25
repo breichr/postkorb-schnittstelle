@@ -7,6 +7,8 @@ import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
@@ -66,10 +68,16 @@ public final class DocumentStore {
             for (Anhang a : z.anhaenge()) {
                 n++;
                 String name = unique(FileNames.sanitize(a.dateiname(), "anhang_" + n), used);
-                try (InputStream in = source.open(a)) {
+                MessageDigest md = a.pruefsumme() != null ? Pruefsumme.digest(a.pruefsummenAlgorithmus()) : null;
+                try (InputStream raw = source.open(a);
+                        InputStream in = md != null ? new DigestInputStream(raw, md) : raw) {
                     Files.copy(in, tmp.resolve(name));
                 }
-                meta.append("  - ").append(name).append(" (").append(nullToEmpty(a.mimeType())).append(")\n");
+                if (md != null && !Pruefsumme.stimmt(md.digest(), a.pruefsumme())) {
+                    throw new IOException("Prüfsumme stimmt nicht für Anhang '" + a.dateiname() + "' der Zustellung " + z.id());
+                }
+                meta.append("  - ").append(name).append(" (").append(nullToEmpty(a.mimeType()))
+                        .append(md != null ? ", Prüfsumme ok" : "").append(")\n");
             }
             Files.writeString(tmp.resolve("zustellung.txt"), meta.toString(), StandardCharsets.UTF_8);
             try {

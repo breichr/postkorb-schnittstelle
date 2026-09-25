@@ -26,8 +26,10 @@ output.dir=C:/Postkorb/Eingang
 # Liste bereits abgeholter Zustellungen (Standard: <output.dir>\.abgeholt.txt)
 #state.file=C:/Postkorb/abgeholt.txt
 
-# Abholung gegenüber dem Postkorb bestätigen, sobald alle Anhänge gespeichert sind
-confirm.after.download=true
+# Zustellung im Postkorb löschen, sobald alle Anhänge gespeichert und geprüft sind.
+# Standard: aus – die Nachrichten bleiben (als gelesen) im Postkorb sichtbar.
+# Hinweis: Schon das Abrufen gilt als Abholung, unabhängig von dieser Einstellung.
+delete.after.download=false
 
 # Nur für --loop
 poll.interval.minutes=60

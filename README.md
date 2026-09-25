@@ -8,9 +8,12 @@ Die Schnittstelle nutzt die offizielle Funktion **„Automatische Abholung“** 
 - SOAP-Webservice unter `https://autoabholung.meinpostkorb.brz.gv.at/soap`
 - beidseitig zertifikatsgesicherte Verbindung (Client-Zertifikat aus dem USP)
 - jeder Anhang wird über einen eigenen REST-GET-Aufruf geladen (mit derselben TLS-Absicherung)
+- vier SOAP-Funktionen, u. a. `GetDelivery` (eine Nachricht samt Daten abrufen) und `DeleteDelivery`
+  (eine bereits gelesene Nachricht löschen); die Anhänge tragen eine Prüfsumme nach ZUSEMSG 4.4
 - Schnittstellenbeschreibung: `zuseaa_p2.wsdl` samt `.xsd`-Dateien, im USP als Maven-Projekt erhältlich
 
-> ⚠️ **Rechtlicher Hinweis:** Eine abgeholte elektronische Zustellung gilt als zugestellt.
+> ⚠️ **Rechtlicher Hinweis:** Schon das Abrufen einer Nachricht über die Schnittstelle gilt als
+> Abholung. Die Nachricht ist danach im Postkorb „gelesen“, und die Zustellung gilt als bewirkt.
 > Ab diesem Zeitpunkt laufen Fristen, z. B. für Beschwerden oder Zahlungen. Die heruntergeladenen
 > Dokumente müssen also verlässlich bei den zuständigen Personen oder im ERP/DMS ankommen.
 
@@ -20,7 +23,8 @@ Die Schnittstelle nutzt die offizielle Funktion **„Automatische Abholung“** 
 |---|---|
 | Konfiguration, Client-Zertifikat (.p12/.pfx oder Windows-Zertifikatsspeicher), mTLS | ✅ |
 | Ablage je Zustellung (Windows-taugliche Dateinamen, atomar, Metadaten) | ✅ |
-| Keine doppelten Downloads, Bestätigung erst nach vollständigem Speichern | ✅ |
+| Prüfsumme jedes Anhangs (SHA-256 usw., hex oder Base64) | ✅ |
+| Keine doppelten Downloads; optionales Löschen im Postkorb erst nach vollständigem Speichern | ✅ |
 | Logging, Exit-Codes, Aufgabenplanung / Dauerbetrieb | ✅ |
 | Demo-Modus ohne Zertifikat | ✅ |
 | **SOAP-Anbindung (`ZuseAaSoapGateway`)** | ⏳ braucht die WSDL aus dem USP |
@@ -107,7 +111,7 @@ Ein nachgelagertes System, das `Eingang\` überwacht, sieht deshalb nie halbfert
 |---|---|
 | 0 | OK |
 | 1 | Konfiguration, Zertifikat oder Verbindung fehlerhaft |
-| 2 | Einzelne Zustellungen sind fehlgeschlagen; sie werden beim nächsten Lauf erneut versucht |
+| 2 | Einzelne Zustellungen sind fehlgeschlagen (z. B. falsche Prüfsumme); sie werden beim nächsten Lauf erneut versucht |
 
 ## Ohne Zertifikat testen (Demo-Modus)
 
@@ -118,14 +122,14 @@ output.dir=C:/Postkorb/Eingang
 ```
 
 Jeder Unterordner von `demo-inbox` gilt als Zustellung, jede Datei darin als Anhang.
-Nach der Bestätigung werden die Unterordner nach `demo-inbox\.bestaetigt` verschoben.
+Mit `delete.after.download=true` werden die Unterordner nach `demo-inbox\.geloescht` verschoben.
 
 ## Aufbau
 
 ```
 at.postkorb
 ├── Main                      Kommandozeile, Logging, Modi
-├── PostkorbAbholer           Ablauf: abfragen → speichern → merken → bestätigen
+├── PostkorbAbholer           Ablauf: abfragen → speichern und prüfen → merken → optional löschen
 ├── config.Config             Properties + Umgebungsvariablen
 ├── tls.TlsContextFactory     Client-Zertifikat (PKCS12 / Windows-MY), Truststore
 ├── gateway.PostkorbGateway   fachliche Schnittstelle (SOAP-Implementierung folgt)

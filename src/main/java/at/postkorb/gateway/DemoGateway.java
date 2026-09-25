@@ -13,7 +13,7 @@ import java.util.stream.Stream;
 /**
  * Simuliert den Postkorb mit einem lokalen Ordner – zum Testen der Abläufe ohne Zertifikat.
  * Jeder Unterordner von {@code demo.inbox} ist eine Zustellung, jede Datei darin ein Anhang.
- * Bestätigte Zustellungen werden in {@code <inbox>/.bestaetigt} verschoben.
+ * Gelöschte Zustellungen werden in {@code <inbox>/.geloescht} verschoben.
  */
 public final class DemoGateway implements PostkorbGateway {
 
@@ -49,10 +49,10 @@ public final class DemoGateway implements PostkorbGateway {
     }
 
     @Override
-    public void bestaetigeAbholung(Zustellung zustellung) throws IOException {
-        Path done = Files.createDirectories(inbox.resolve(".bestaetigt"));
+    public void loescheZustellung(Zustellung zustellung) throws IOException {
+        Path done = Files.createDirectories(inbox.resolve(".geloescht"));
         Files.move(inbox.resolve(zustellung.id()), done.resolve(zustellung.id() + "_" + Instant.now().toEpochMilli()));
-        LOG.info(() -> "Demo: Abholung bestätigt für " + zustellung.id());
+        LOG.info(() -> "Demo: Zustellung gelöscht: " + zustellung.id());
     }
 
     private static String probe(Path f) {

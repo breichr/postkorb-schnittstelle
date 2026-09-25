@@ -12,9 +12,9 @@ import at.postkorb.store.DocumentStore;
 import at.postkorb.store.ProcessedStore;
 
 /**
- * Ein Abholdurchlauf: abholbereite Zustellungen abfragen, Anhänge speichern,
- * danach die Abholung bestätigen. Fehler bei einer Zustellung brechen den Lauf
- * nicht ab; die Zustellung wird beim nächsten Lauf erneut versucht.
+ * Ein Abholdurchlauf: Zustellungen abfragen, Anhänge speichern und prüfen, optional
+ * danach im Postkorb löschen. Fehler bei einer Zustellung brechen den Lauf nicht ab;
+ * die Zustellung wird beim nächsten Lauf erneut versucht.
  */
 public final class PostkorbAbholer {
 
@@ -26,18 +26,18 @@ public final class PostkorbAbholer {
     private final PostkorbGateway gateway;
     private final DocumentStore store;
     private final ProcessedStore processed;
-    private final boolean bestaetigen;
+    private final boolean loeschen;
 
-    public PostkorbAbholer(PostkorbGateway gateway, DocumentStore store, ProcessedStore processed, boolean bestaetigen) {
+    public PostkorbAbholer(PostkorbGateway gateway, DocumentStore store, ProcessedStore processed, boolean loeschen) {
         this.gateway = gateway;
         this.store = store;
         this.processed = processed;
-        this.bestaetigen = bestaetigen;
+        this.loeschen = loeschen;
     }
 
     public Ergebnis durchlauf() throws IOException {
         List<Zustellung> liste = gateway.abholbereit();
-        LOG.info(() -> liste.size() + " Zustellung(en) abholbereit");
+        LOG.info(() -> liste.size() + " Zustellung(en) im Postkorb");
         int neu = 0, skip = 0, err = 0;
         for (Zustellung z : liste) {
             try {
@@ -49,10 +49,10 @@ public final class PostkorbAbholer {
                     neu++;
                     LOG.info(() -> "Gespeichert: " + z.id() + " (" + z.anhaenge().size() + " Anhang/Anhänge) -> " + ziel);
                 }
-                // Auch bereits gespeicherte, aber noch nicht bestätigte Zustellungen bestätigen,
-                // sonst würden sie dauerhaft in der Liste bleiben.
-                if (bestaetigen) {
-                    gateway.bestaetigeAbholung(z);
+                // Auch früher gespeicherte Zustellungen löschen, falls das Löschen damals fehlschlug.
+                if (loeschen) {
+                    gateway.loescheZustellung(z);
+                    LOG.info(() -> "Im Postkorb gelöscht: " + z.id());
                 }
             } catch (IOException | RuntimeException e) {
                 err++;

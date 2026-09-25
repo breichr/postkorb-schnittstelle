@@ -24,7 +24,7 @@ public record Config(
         char[] truststorePassword,
         Path outputDir,
         Path stateFile,
-        boolean confirmAfterDownload,
+        boolean deleteAfterDownload,
         Duration pollInterval,
         Duration httpTimeout,
         Path demoInbox) {
@@ -52,7 +52,7 @@ public record Config(
                 secret(p, "tls.truststore.password", "POSTKORB_TRUSTSTORE_PASSWORD"),
                 outputDir,
                 path(base, get(p, "state.file", outputDir.resolve(".abgeholt.txt").toString())),
-                Boolean.parseBoolean(get(p, "confirm.after.download", "true")),
+                Boolean.parseBoolean(get(p, "delete.after.download", "false")),
                 Duration.ofMinutes(Long.parseLong(get(p, "poll.interval.minutes", "60"))),
                 Duration.ofSeconds(Long.parseLong(get(p, "http.timeout.seconds", "60"))),
                 optionalPath(base, get(p, "demo.inbox", null)));

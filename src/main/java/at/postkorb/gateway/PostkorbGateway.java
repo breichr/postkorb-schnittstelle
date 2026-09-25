@@ -13,15 +13,21 @@ import java.util.List;
  */
 public interface PostkorbGateway {
 
-    /** Liefert alle Zustellungen, die zur Abholung bereitliegen. */
+    /**
+     * Liefert die Zustellungen im Postkorb samt Metadaten und Anhängen.
+     *
+     * <p>Achtung: Das Abrufen einer Nachricht (SOAP-Funktion GetDelivery) gilt als Abholung –
+     * die Nachricht ist danach gelesen (geschlossen), und die Zustellung ist rechtlich bewirkt.
+     */
     List<Zustellung> abholbereit() throws IOException;
 
     /** Öffnet den Inhalt eines Anhangs (REST-GET über dieselbe mTLS-Verbindung). */
     InputStream oeffneAnhang(Zustellung zustellung, Anhang anhang) throws IOException;
 
     /**
-     * Bestätigt die erfolgreiche Abholung gegenüber dem Postkorb.
-     * Wird erst aufgerufen, nachdem alle Anhänge sicher gespeichert sind.
+     * Löscht die Zustellung im Postkorb (SOAP-Funktion DeleteDelivery). Das geht laut USP nur
+     * für bereits gelesene (= geschlossene) Nachrichten. Wird nur aufgerufen, wenn
+     * {@code delete.after.download=true} gesetzt ist und alle Anhänge sicher gespeichert sind.
      */
-    void bestaetigeAbholung(Zustellung zustellung) throws IOException;
+    void loescheZustellung(Zustellung zustellung) throws IOException;
 }

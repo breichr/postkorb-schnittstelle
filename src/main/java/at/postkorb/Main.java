@@ -71,7 +71,7 @@ public final class Main {
             }
             PostkorbGateway gateway = createGateway(cfg);
             PostkorbAbholer abholer = new PostkorbAbholer(gateway, new DocumentStore(cfg.outputDir()),
-                    new ProcessedStore(cfg.stateFile()), cfg.confirmAfterDownload());
+                    new ProcessedStore(cfg.stateFile()), cfg.deleteAfterDownload());
             if (mode.equals("--loop")) {
                 while (!Thread.currentThread().isInterrupted()) {
                     try {
