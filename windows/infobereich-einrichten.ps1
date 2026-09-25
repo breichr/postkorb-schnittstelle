@@ -42,6 +42,16 @@ if (-not [Environment]::GetEnvironmentVariable("POSTKORB_KEYSTORE_PASSWORD", "Us
     Write-Host "Passwort für Benutzer $env:USERNAME gespeichert."
 }
 
+# ELAK-Passwort (nur wenn in der Konfiguration ein ELAK-Benutzer eingetragen ist)
+if ((Select-String -Path $config -Pattern '^\s*elak\.benutzer\s*=\s*\S' -Quiet) -and
+    -not [Environment]::GetEnvironmentVariable("POSTKORB_ELAK_PASSWORD", "User")) {
+    $sec = Read-Host "Passwort für den ELAK (wie im Outlook-Add-In)" -AsSecureString
+    $plain = [Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR($sec))
+    [Environment]::SetEnvironmentVariable("POSTKORB_ELAK_PASSWORD", $plain, "User")
+    $env:POSTKORB_ELAK_PASSWORD = $plain
+    Write-Host "ELAK-Passwort für Benutzer $env:USERNAME gespeichert."
+}
+
 $shell = New-Object -ComObject WScript.Shell
 foreach ($lnk in $autostart, $startmenue) {
     $s = $shell.CreateShortcut($lnk)

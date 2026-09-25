@@ -32,6 +32,7 @@ import at.postkorb.zuseaa.ZuseAaSoapGateway;
  *   <li>{@code --tray}: Programm im Windows-Infobereich (mit javaw.exe starten).</li>
  *   <li>{@code --elak-pruefen}: ELAK-Anbindung nur lesend prüfen.</li>
  *   <li>{@code --elak-testmappe datei.pdf}: eine Testmappe ohne Workflow im ELAK anlegen.</li>
+ *   <li>{@code --elak-nachtragen ordner}: bereits abgeholte Zustellung in die ELAK-Warteliste stellen.</li>
  * </ul>
  */
 public final class Main {
@@ -49,6 +50,10 @@ public final class Main {
             switch (args[i]) {
                 case "--config" -> configFile = Path.of(args[++i]);
                 case "--elak-pruefen" -> mode = args[i];
+                case "--elak-nachtragen" -> {
+                    mode = args[i];
+                    testdatei = Path.of(args[++i]);
+                }
                 case "--elak-testmappe" -> {
                     mode = args[i];
                     testdatei = Path.of(args[++i]);
@@ -66,6 +71,14 @@ public final class Main {
         }
         if (mode.equals("--elak-pruefen")) {
             System.exit(ElakWerkzeug.pruefen(configFile, System.out));
+        }
+        if (mode.equals("--elak-nachtragen")) {
+            try {
+                System.exit(ElakWerkzeug.nachtragen(Config.load(configFile).outputDir(), testdatei, System.out));
+            } catch (IOException e) {
+                System.out.println("FEHLER: " + e.getMessage());
+                System.exit(1);
+            }
         }
         if (mode.equals("--elak-testmappe")) {
             System.exit(ElakWerkzeug.testmappe(configFile, testdatei, System.out));

@@ -7,7 +7,8 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Consumer;
+import java.nio.file.Path;
+import java.util.function.BiConsumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -37,7 +38,7 @@ public final class TrayController {
 
     @FunctionalInterface
     public interface AbholerFactory {
-        PostkorbAbholer create(Consumer<Zustellung> beiNeuerZustellung) throws Exception;
+        PostkorbAbholer create(BiConsumer<Zustellung, Path> beiNeuerZustellung) throws Exception;
     }
 
     @FunctionalInterface
@@ -63,6 +64,9 @@ public final class TrayController {
     private boolean zertifikatAbgelaufen;
     private Instant warnungGemeldetAm;
     private String statusZeile = "Noch keine Abholung";
+    private int elakWartend;
+    private String elakFehler;
+    private BiConsumer<Zustellung, Path> nachSpeichern = (z, ordner) -> { };
 
     public TrayController(View view, AbholerFactory abholerFactory, LockFactory lockFactory,
             ZertifikatsAblauf zertifikatsAblauf, Clock clock) {
@@ -71,6 +75,21 @@ public final class TrayController {
         this.lockFactory = lockFactory;
         this.zertifikatsAblauf = zertifikatsAblauf;
         this.clock = clock;
+    }
+
+    /** Wird für jede neu gespeicherte Zustellung aufgerufen (z. B. um sie in die ELAK-Warteliste aufzunehmen). */
+    public synchronized void setNachSpeichern(BiConsumer<Zustellung, Path> nachSpeichern) {
+        this.nachSpeichern = nachSpeichern;
+    }
+
+    /** Stand der ELAK-Übergabe: wartende Zuordnungen und ggf. ein Fehler (null = in Ordnung). */
+    public synchronized void elakStatus(int wartend, String fehler) {
+        if (fehler != null && !fehler.equals(elakFehler)) {
+            view.meldung("USP Postkorb – Übergabe an den ELAK fehlgeschlagen", fehler, true);
+        }
+        elakWartend = wartend;
+        elakFehler = fehler;
+        aktualisieren();
     }
 
     /** Ein Abholdurchlauf mit Aktualisierung von Symbol, Status und Meldungen. */
@@ -83,7 +102,10 @@ public final class TrayController {
             if (lock == null) {
                 ergebnis = "übersprungen, andere Abholung läuft";
             } else {
-                PostkorbAbholer.Ergebnis r = abholerFactory.create(neue::add).durchlauf();
+                PostkorbAbholer.Ergebnis r = abholerFactory.create((z, ordner) -> {
+                    neue.add(z);
+                    nachSpeichern.accept(z, ordner);
+                }).durchlauf();
                 if (r.fehler() > 0) {
                     fehlerNeu = r.fehler() + " Zustellung(en) konnten nicht abgeholt werden – siehe Protokoll";
                 }
@@ -115,10 +137,10 @@ public final class TrayController {
     }
 
     synchronized Zustand zustand() {
-        if (fehler != null || zertifikatAbgelaufen) {
+        if (fehler != null || elakFehler != null || zertifikatAbgelaufen) {
             return Zustand.FEHLER;
         }
-        if (ungelesen > 0) {
+        if (ungelesen > 0 || elakWartend > 0) {
             return Zustand.NEUE_POST;
         }
         return warnung != null ? Zustand.WARNUNG : Zustand.OK;
@@ -127,8 +149,9 @@ public final class TrayController {
     private void aktualisieren() {
         Zustand z = zustand();
         String text = switch (z) {
-            case FEHLER -> zertifikatAbgelaufen && fehler == null ? warnung : fehler;
-            case NEUE_POST -> ungelesen + " neue Zustellung(en) im Eingang";
+            case FEHLER -> fehler != null ? fehler : elakFehler != null ? "ELAK: " + elakFehler : warnung;
+            case NEUE_POST -> elakWartend > 0 ? elakWartend + " Zustellung(en) warten auf Zuordnung für den ELAK"
+                    : ungelesen + " neue Zustellung(en) im Eingang";
             case WARNUNG -> warnung;
             default -> "alles in Ordnung";
         };

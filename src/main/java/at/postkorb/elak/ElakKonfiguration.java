@@ -22,7 +22,9 @@ public record ElakKonfiguration(
         String workflowDokument,
         String mappentypRechnung,
         String workflowRechnung,
-        String register) {
+        String register,
+        String felderDokument,
+        String felderRechnung) {
 
     public static final String DEFAULT_URL = "https://dce-ds-01.gemdatdce.at:12059";
 
@@ -58,7 +60,18 @@ public record ElakKonfiguration(
                 wert(p, "elak.dokument.workflow", "Dokument"),
                 wert(p, "elak.rechnung.mappentyp", "Beleg"),
                 wert(p, "elak.rechnung.workflow", "Outlook_ER"),
-                wert(p, "elak.register", null));
+                wert(p, "elak.register", null),
+                wert(p, "elak.dokument.felder", null),
+                wert(p, "elak.rechnung.felder", null));
+    }
+
+    /** true, wenn in der Konfiguration ein ELAK-Benutzer eingetragen ist. */
+    public static boolean konfiguriert(Path configFile) throws IOException {
+        Properties p = new Properties();
+        try (Reader r = Files.newBufferedReader(configFile, StandardCharsets.UTF_8)) {
+            p.load(r);
+        }
+        return wert(p, "elak.benutzer", null) != null && !"false".equalsIgnoreCase(wert(p, "elak.aktiv", "true"));
     }
 
     private static String wert(Properties p, String key, String def) {

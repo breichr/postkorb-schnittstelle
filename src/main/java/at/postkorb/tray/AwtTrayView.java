@@ -17,6 +17,8 @@ final class AwtTrayView implements TrayController.View {
 
         void eingangOeffnen();
 
+        void zuordnen();
+
         void protokollOeffnen();
 
         void updateSuchen();
@@ -45,6 +47,7 @@ final class AwtTrayView implements TrayController.View {
         menu.addSeparator();
         menu.add(item("Jetzt abholen", aktionen::jetztAbholen));
         menu.add(item("Eingang öffnen", aktionen::eingangOeffnen));
+        menu.add(item("Für den ELAK zuordnen …", aktionen::zuordnen));
         menu.add(item("Protokoll öffnen", aktionen::protokollOeffnen));
         menu.addSeparator();
         MenuItem versionItem = new MenuItem("Version " + version);

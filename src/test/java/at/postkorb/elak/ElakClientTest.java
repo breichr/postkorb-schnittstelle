@@ -69,7 +69,7 @@ class ElakClientTest {
 
     private ElakKonfiguration konfig(String register) {
         return new ElakKonfiguration(URI.create("http://x"), "breichr", "DA41226", "geheim".toCharArray(),
-                "Dokument", "Dokument", "Beleg", "Outlook_ER", register);
+                "Dokument", "Dokument", "Beleg", "Outlook_ER", register, null, null);
     }
 
     @Test
@@ -147,7 +147,7 @@ class ElakClientTest {
     void pruefenFindetFehlendenWorkflow() throws IOException {
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
         ElakKonfiguration k = new ElakKonfiguration(URI.create("http://x"), "b", "m", "geheim".toCharArray(),
-                "Dokument", "Gibtsnicht", "Beleg", "Outlook_ER", null);
+                "Dokument", "Gibtsnicht", "Beleg", "Outlook_ER", null, null, null);
         try (ElakClient c = client()) {
             assertEquals(2, ElakWerkzeug.pruefen(c, k, new PrintStream(bos, true, StandardCharsets.UTF_8)));
         }

@@ -113,6 +113,19 @@ public final class ElakWerkzeug {
         return 0;
     }
 
+    /** Stellt einen Zustellungsordner nachträglich in die ELAK-Warteliste (Zuordnung dann im Infobereich). */
+    public static int nachtragen(Path eingang, Path ordner, PrintStream out) {
+        try {
+            new Warteliste(eingang).nachtragen(ordner.toAbsolutePath());
+            out.println("[OK] In die ELAK-Warteliste gestellt: " + ordner.getFileName());
+            out.println("Zuordnen im Infobereich: Rechtsklick > Für den ELAK zuordnen … (oder nach der nächsten Abholung automatisch)");
+            return 0;
+        } catch (IOException e) {
+            out.println("FEHLER: " + e.getMessage());
+            return 1;
+        }
+    }
+
     /** Konfiguriertes Register oder das erste Register des Mappentyps. */
     public static String registerFuer(ElakClient elak, ElakKonfiguration k, String mappentyp) throws IOException {
         if (k.register() != null) {

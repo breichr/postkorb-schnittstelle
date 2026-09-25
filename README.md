@@ -185,22 +185,36 @@ cd C:\Postkorb
   Erst Versionen mit diesem Schlüssel können Updates prüfen und installieren; die erste solche
   Version wird einmalig von Hand installiert.
 
-### ELAK-Anbindung (in Arbeit)
+### ELAK-Anbindung (k5 ELAK / otris DOCUMENTS)
 
-Ziel: Jede abgeholte Zustellung wird PDF für PDF in den k5 ELAK (otris DOCUMENTS bei gemdat)
-übernommen – Dokumente als Mappentyp *Dokument* mit Workflow `Dokument`, Rechnungen als *Beleg*
-mit Workflow `Outlook_ER`, genau wie mit dem Outlook-Add-In. Verwendet wird dieselbe SOAP-Schnittstelle
-(`DOCUMENTS-4.0.wsdl`) wie vom Add-In; die Nutzung ist mit gemdat abgeklärt.
+Jede neue Zustellung kommt in eine Warteliste (`Eingang\.elak\`). Das Programm im Infobereich öffnet
+danach ein **Zuordnungsfenster**: pro Anhang *Dokument*, *Rechnung* oder *nicht übernehmen* – mit Vorschlag
+aus Dateiname, Betreff und ggf. mitgeschickter e-Rechnung. „Später“ lässt alles in der Warteliste
+(Menü „Für den ELAK zuordnen …“). Nach „Übernehmen“ wird **pro PDF eine Mappe** angelegt (Register
+„Anlagen“) und der Workflow gestartet:
 
-Erster Schritt – Verbindung prüfen (in `config\postkorb.properties` `elak.benutzer` und `elak.mandant` eintragen):
+| Art | Mappentyp | Workflow |
+|---|---|---|
+| Dokument | Dokument | `Dokument` |
+| Rechnung | Beleg | `Outlook_ER` |
 
-```powershell
-.\runtime\bin\java.exe -jar postkorb-schnittstelle.jar --config config\postkorb.properties --elak-pruefen
-```
+Verwendet wird dieselbe SOAP-Schnittstelle (`DOCUMENTS-4.0.wsdl`) wie vom Outlook-Add-In; die Nutzung ist
+mit gemdat abgeklärt. Die Mappen-ID wird sofort gespeichert: Scheitert nur der Workflow-Start, entsteht
+beim nächsten Versuch keine zweite Mappe. Fehler machen das Symbol rot; es wird bei jedem Lauf erneut versucht.
 
-Meldet sich an und prüft **nur lesend**, ob Mappentypen, Register und Workflows vorhanden sind.
-Danach kann mit `--elak-testmappe <datei.pdf>` genau eine Mappe vom Typ *Dokument* **ohne Workflow**
-angelegt werden, um das Ergebnis im ELAK anzusehen (danach wieder löschen).
+Einrichten: in `config\postkorb.properties` `elak.benutzer` und `elak.mandant` eintragen, danach
+`infobereich-einrichten.ps1` erneut ausführen (fragt das ELAK-Passwort ab) und das Programm neu starten.
+
+Werkzeuge (PowerShell, in `C:\Postkorb`):
+
+| Befehl | Zweck |
+|---|---|
+| `.\runtime\bin\java.exe -jar postkorb-schnittstelle.jar --elak-pruefen` | nur lesend prüfen: Anmeldung, Mappentypen, Register, Felder, Workflows |
+| `… --elak-testmappe <datei.pdf>` | genau eine Mappe *Dokument* ohne Workflow anlegen |
+| `… --elak-nachtragen "<Zustellungsordner>"` | bereits abgeholte Zustellung nachträglich in die Warteliste stellen |
+
+Mit `$env:POSTKORB_ELAK_DEBUG = "1"` wird der SOAP-Verkehr (ohne Passwort, Session und Dateiinhalte)
+in `elak-debug.log` protokolliert.
 
 ### Ablage
 

@@ -1,4 +1,4 @@
-# Konfiguration der USP-Postkorb-Schnittstelle
+﻿# Konfiguration der USP-Postkorb-Schnittstelle
 # Kopieren nach config\postkorb.properties und anpassen.
 # Relative Pfade beziehen sich auf den Ordner dieser Datei.
 
@@ -53,9 +53,12 @@ http.timeout.seconds=60
 #update.enabled=true
 #update.url=https://github.com/breichr/postkorb-schnittstelle/releases/latest/download/
 
-# --- ELAK (otris DOCUMENTS bei gemdat) – in Vorbereitung ---
+# --- ELAK (otris DOCUMENTS bei gemdat) ---
+# Ist elak.benutzer gesetzt, übernimmt das Programm im Infobereich jede neue Zustellung in den ELAK:
+# Zuordnungsfenster (Dokument / Rechnung / nicht übernehmen) und eine Mappe pro PDF mit Workflow.
 # Zugangsdaten wie im Outlook-Add-In (Registry: HKCU\SOFTWARE\Gemdat\DocumentsAddIn).
-# Passwort über die Umgebungsvariable POSTKORB_ELAK_PASSWORD (oder Abfrage beim Test).
+# Passwort über die Umgebungsvariable POSTKORB_ELAK_PASSWORD (infobereich-einrichten.ps1 fragt es ab).
+#elak.aktiv=true
 #elak.url=https://dce-ds-01.gemdatdce.at:12059
 #elak.benutzer=<Benutzername>
 #elak.mandant=<Mandant>
@@ -63,5 +66,9 @@ http.timeout.seconds=60
 #elak.dokument.workflow=Dokument
 #elak.rechnung.mappentyp=Beleg
 #elak.rechnung.workflow=Outlook_ER
-# Register für die Dateien (Standard: erstes Register des Mappentyps)
+# Register für die Dateien (Standard: erstes Register des Mappentyps, bei euch "Anlagen")
 #elak.register=
+# Felder vorbelegen (Standard: keine, wie das Outlook-Add-In). Platzhalter: {betreff} {absender} {gz}
+# {zustellqualitaet} {eingang} {id}. Beispiel:
+#elak.dokument.felder=BuchungstextBetreff={betreff}; Personenname={absender}; Fremdzahl={gz}
+#elak.rechnung.felder=BuchungstextBetreff={betreff}; Personenname={absender}

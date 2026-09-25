@@ -38,7 +38,7 @@ import org.xml.sax.SAXException;
  * Nach {@code login} wird die Session-ID in jedem Aufruf als SOAP-Header
  * {@code <DOCUMENTS:sessionID>} mitgeschickt.
  */
-public final class ElakClient implements AutoCloseable {
+public final class ElakClient implements Elak {
 
     static final String SOAP12 = "http://www.w3.org/2003/05/soap-envelope";
     static final String NS = "http://xml.otris.de/ws/DOCUMENTS.xsd";
@@ -116,6 +116,7 @@ public final class ElakClient implements AutoCloseable {
         return beschreibe(mappentyp, null);
     }
 
+    @Override
     public MappentypInfo beschreibe(String mappentyp, String id) throws IOException {
         List<String> varianten = kategorien != null ? List.of(kategorien) : KATEGORIEN;
         for (String kat : varianten) {
