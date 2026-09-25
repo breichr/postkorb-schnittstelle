@@ -19,14 +19,22 @@ final class AwtTrayView implements TrayController.View {
 
         void protokollOeffnen();
 
+        void updateSuchen();
+
+        void updateInstallieren();
+
+        /** tägliche Prüfung im Hintergrund – meldet nur, wenn es ein Update gibt */
+        void updateSuchenAutomatisch();
+
         void beenden();
     }
 
     private final Map<TrayController.Zustand, java.awt.Image> icons = new EnumMap<>(TrayController.Zustand.class);
     private final TrayIcon trayIcon;
     private final MenuItem status;
+    private final MenuItem update;
 
-    AwtTrayView(Aktionen aktionen) throws AWTException {
+    AwtTrayView(Aktionen aktionen, String version) throws AWTException {
         for (TrayController.Zustand z : TrayController.Zustand.values()) {
             icons.put(z, TrayIcons.fuer(z));
         }
@@ -38,6 +46,14 @@ final class AwtTrayView implements TrayController.View {
         menu.add(item("Jetzt abholen", aktionen::jetztAbholen));
         menu.add(item("Eingang öffnen", aktionen::eingangOeffnen));
         menu.add(item("Protokoll öffnen", aktionen::protokollOeffnen));
+        menu.addSeparator();
+        MenuItem versionItem = new MenuItem("Version " + version);
+        versionItem.setEnabled(false);
+        menu.add(versionItem);
+        menu.add(item("Nach Updates suchen", aktionen::updateSuchen));
+        update = item("Kein Update verfügbar", aktionen::updateInstallieren);
+        update.setEnabled(false);
+        menu.add(update);
         menu.addSeparator();
         menu.add(item("Beenden", aktionen::beenden));
 
@@ -67,6 +83,13 @@ final class AwtTrayView implements TrayController.View {
     public void meldung(String titel, String text, boolean fehler) {
         EventQueue.invokeLater(() -> trayIcon.displayMessage(titel, text,
                 fehler ? TrayIcon.MessageType.ERROR : TrayIcon.MessageType.INFO));
+    }
+
+    void updateVerfuegbar(String version) {
+        EventQueue.invokeLater(() -> {
+            update.setLabel(version == null ? "Kein Update verfügbar" : "Update auf Version " + version + " installieren");
+            update.setEnabled(version != null);
+        });
     }
 
     void entfernen() {

@@ -29,7 +29,9 @@ public record Config(
         boolean deleteAfterDownload,
         Duration pollInterval,
         Duration httpTimeout,
-        Path demoInbox) {
+        Path demoInbox,
+        boolean updateAktiv,
+        URI updateUrl) {
 
     public static final URI DEFAULT_SOAP_ENDPOINT = URI.create("https://autoabholung.meinpostkorb.brz.gv.at/soap");
     /** Testzugang laut USP-How-To: liefert immer dieselben Mockdaten, Close/Delete ändern nichts. */
@@ -68,7 +70,9 @@ public record Config(
                 Boolean.parseBoolean(get(p, "delete.after.download", "false")),
                 Duration.ofMinutes(Long.parseLong(get(p, "poll.interval.minutes", "60"))),
                 Duration.ofSeconds(Long.parseLong(get(p, "http.timeout.seconds", "60"))),
-                optionalPath(base, get(p, "demo.inbox", null)));
+                optionalPath(base, get(p, "demo.inbox", null)),
+                Boolean.parseBoolean(get(p, "update.enabled", "true")),
+                URI.create(get(p, "update.url", "https://github.com/breichr/postkorb-schnittstelle/releases/latest/download/")));
     }
 
     private static String get(Properties p, String key, String def) {

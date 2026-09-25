@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
+import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -21,6 +22,10 @@ import at.postkorb.store.DocumentStore;
 import at.postkorb.store.ProcessedStore;
 import at.postkorb.store.RunLock;
 import at.postkorb.tls.TlsContextFactory;
+import at.postkorb.update.Signatur;
+import at.postkorb.update.UpdateInstaller;
+import at.postkorb.update.UpdateService;
+import at.postkorb.update.Version;
 
 /**
  * Programm im Windows-Infobereich: holt beim Start und danach alle {@code poll.interval.minutes}
@@ -66,6 +71,11 @@ public final class TrayApp {
             t.setDaemon(false);
             return t;
         });
+        String version = Version.aktuell();
+        Path updateDir = cfg.outputDir().resolve("updates");
+        UpdateService updates = new UpdateService(cfg.updateUrl(), version,
+                cfg.updateAktiv() ? Signatur.eingebauterSchluessel() : null, updateDir);
+        String[] verfuegbar = new String[1];
         TrayController[] controller = new TrayController[1];
         AwtTrayView[] view = new AwtTrayView[1];
         AwtTrayView.Aktionen aktionen = new AwtTrayView.Aktionen() {
@@ -86,6 +96,66 @@ public final class TrayApp {
             }
 
             @Override
+            public void updateSuchen() {
+                executor.execute(() -> updateSuchen(true));
+            }
+
+            @Override
+            public void updateSuchenAutomatisch() {
+                updateSuchen(false);
+            }
+
+            @Override
+            public void updateInstallieren() {
+                executor.execute(() -> {
+                    String v = verfuegbar[0];
+                    if (v == null) {
+                        return;
+                    }
+                    try {
+                        Path neu = updates.herunterladen(v);
+                        Path javaw = ProcessHandle.current().info().command().map(Path::of)
+                                .orElseThrow(() -> new IOException("Pfad von javaw.exe nicht ermittelbar"));
+                        UpdateInstaller.starte(eigeneJar(), neu, javaw, configFile.toAbsolutePath(), updateDir, v);
+                        LOG.info(() -> "Update auf Version " + v + " wird installiert – Programm startet neu");
+                        view[0].meldung(TITEL, "Update auf Version " + v + " wird installiert. Das Programm startet gleich neu.", false);
+                        Thread.sleep(1500);
+                        beendenOhneWarten();
+                    } catch (Exception e) {
+                        LOG.log(Level.SEVERE, "Update fehlgeschlagen", e);
+                        view[0].meldung(TITEL + " – Update fehlgeschlagen", String.valueOf(e.getMessage()), true);
+                    }
+                });
+            }
+
+            private void updateSuchen(boolean manuell) {
+                if (!updates.aktiv()) {
+                    if (manuell) {
+                        view[0].meldung(TITEL, "Updates sind in dieser Version noch nicht eingerichtet (kein Signaturschlüssel).", false);
+                    }
+                    return;
+                }
+                try {
+                    Optional<String> v = updates.neuereVersion();
+                    verfuegbar[0] = v.orElse(null);
+                    view[0].updateVerfuegbar(verfuegbar[0]);
+                    if (v.isPresent()) {
+                        LOG.info(() -> "Update verfügbar: " + v.get());
+                        view[0].meldung(TITEL + " – Update verfügbar",
+                                "Version " + v.get() + " ist verfügbar (installiert: " + version + ").\n"
+                                        + "Rechtsklick auf das Symbol > Update installieren", false);
+                    } else if (manuell) {
+                        view[0].meldung(TITEL, "Version " + version + " ist aktuell.", false);
+                    }
+                } catch (IOException | RuntimeException e) {
+                    LOG.log(Level.WARNING, "Update-Prüfung fehlgeschlagen", e);
+                    if (manuell) {
+                        view[0].meldung(TITEL, "Update-Prüfung fehlgeschlagen: " + e.getMessage(), true);
+                    }
+                }
+            }
+
+            @Override
             public void beenden() {
                 LOG.info("Programm wird beendet");
                 executor.shutdown();
@@ -94,6 +164,10 @@ public final class TrayApp {
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
+                beendenOhneWarten();
+            }
+
+            private void beendenOhneWarten() {
                 view[0].entfernen();
                 try {
                     instanz.close();
@@ -105,7 +179,7 @@ public final class TrayApp {
         };
 
         try {
-            view[0] = new AwtTrayView(aktionen);
+            view[0] = new AwtTrayView(aktionen, version);
         } catch (Exception e) {
             fehlerDialog("Das Symbol im Infobereich konnte nicht angelegt werden:\n" + e.getMessage());
             return 1;
@@ -118,10 +192,28 @@ public final class TrayApp {
                         ? TlsContextFactory.clientCertificate(cfg).getNotAfter().toInstant() : null,
                 Clock.systemDefaultZone());
 
+        // erfolgreicher Start nach einem Update bestätigen (sonst stellt update.cmd die alte Version wieder her)
+        try {
+            Files.createDirectories(updateDir);
+            Files.writeString(UpdateInstaller.erfolgsMarke(updateDir, version), "ok");
+        } catch (IOException e) {
+            LOG.log(Level.WARNING, "Erfolgsmarke für Update nicht schreibbar", e);
+        }
+
         long minuten = Math.max(1, cfg.pollInterval().toMinutes());
-        LOG.info(() -> "Programm im Infobereich gestartet, Abholung alle " + minuten + " Minuten");
+        LOG.info(() -> "Programm im Infobereich gestartet (Version " + version + "), Abholung alle " + minuten + " Minuten"
+                + (updates.aktiv() ? ", tägliche Update-Prüfung" : ", Updates deaktiviert"));
         executor.scheduleWithFixedDelay(controller[0]::abholen, 0, minuten, TimeUnit.MINUTES);
+        executor.scheduleWithFixedDelay(aktionen::updateSuchenAutomatisch, 2, 24 * 60, TimeUnit.MINUTES);
         return 0;
+    }
+
+    private static Path eigeneJar() throws Exception {
+        Path p = Path.of(TrayApp.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+        if (!p.toString().toLowerCase().endsWith(".jar")) {
+            throw new IOException("Programm läuft nicht aus einer JAR-Datei – Update nicht möglich");
+        }
+        return p;
     }
 
     private static void oeffne(Path p) {

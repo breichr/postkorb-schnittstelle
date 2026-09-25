@@ -47,3 +47,8 @@ http.timeout.seconds=60
 
 # Nur für gateway=demo: Ordner mit Unterordnern je Test-Zustellung
 #demo.inbox=C:/Postkorb/demo-inbox
+
+# --- Automatische Updates (nur Programm im Infobereich) ---
+# Täglich wird geprüft, ob es eine neue, signierte Version gibt; installiert wird erst nach Klick.
+#update.enabled=true
+#update.url=https://github.com/breichr/postkorb-schnittstelle/releases/latest/download/

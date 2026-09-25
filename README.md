@@ -156,6 +156,35 @@ Entfernen: `.\infobereich-einrichten.ps1 -Entfernen`. Manuell starten: `postkorb
 oder Startmenü → „USP Postkorb“. Das Programm läuft nur, solange der Benutzer angemeldet ist; was
 in der Zwischenzeit eintrifft, wird nach der Anmeldung abgeholt.
 
+### Updates
+
+Nach jedem Merge in `main` baut GitHub Actions automatisch ein Release (Version `1.0.<Laufnummer>`),
+signiert die JAR-Datei und veröffentlicht sie unter *Releases* – zusammen mit einem vollständigen
+Windows-Paket. Das Programm im Infobereich prüft einmal täglich (und über das Menü „Nach Updates suchen“),
+ob es eine neuere Version gibt, und meldet sie. **Installiert wird erst nach Klick** auf
+„Update auf Version … installieren“:
+
+1. Download und Prüfung: Die Ed25519-Signatur muss zum im Programm eingebauten öffentlichen Schlüssel
+   passen, und die Versionsnummer in der JAR muss stimmen. Sonst wird nichts installiert.
+2. Das Programm beendet sich, `updates\update.cmd` tauscht die JAR aus (die alte bleibt als `.bak`)
+   und startet die neue Version.
+3. Meldet sich die neue Version nicht innerhalb von 90 Sekunden als gestartet, wird automatisch die
+   alte wiederhergestellt. Protokoll: `Eingang\updates\update.log`.
+
+**Einmalige Einrichtung des Signaturschlüssels** (auf einem vertrauenswürdigen PC):
+
+```powershell
+cd C:\Postkorb
+.\runtime\bin\java.exe -cp postkorb-schnittstelle.jar at.postkorb.update.Signatur erzeugen signatur-privat.txt
+```
+
+- Inhalt von `signatur-privat.txt` in GitHub unter *Settings → Secrets and variables → Actions →
+  New repository secret* als `POSTKORB_SIGNING_KEY` eintragen. Die Datei danach löschen oder offline
+  verwahren – wer sie besitzt, kann Updates signieren.
+- Den ausgegebenen **öffentlichen** Schlüssel in `src/main/resources/update-public-key.txt` eintragen.
+  Erst Versionen mit diesem Schlüssel können Updates prüfen und installieren; die erste solche
+  Version wird einmalig von Hand installiert.
+
 ### Ablage
 
 ```
