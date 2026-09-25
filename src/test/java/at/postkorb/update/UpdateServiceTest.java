@@ -178,6 +178,20 @@ class UpdateServiceTest {
     }
 
     @Test
+    void aufraeumenEntferntNurAlteReste() throws IOException {
+        Path u = Files.createDirectories(tmp.resolve("updates"));
+        for (String n : new String[] {"ok-1.0.0-SNAPSHOT", "ok-1.0.1", "ok-1.0.2", "postkorb-schnittstelle-1.0.2.jar",
+                "postkorb-schnittstelle-1.0.1.jar", "postkorb-schnittstelle-1.0.3.jar", "update.log", "update.cmd"}) {
+            Files.writeString(u.resolve(n), "x");
+        }
+        UpdateInstaller.aufraeumen(u, "1.0.2");
+        try (var s = Files.list(u)) {
+            assertEquals(java.util.Set.of("ok-1.0.2", "postkorb-schnittstelle-1.0.3.jar", "update.log", "update.cmd"),
+                    s.map(p -> p.getFileName().toString()).collect(java.util.stream.Collectors.toSet()));
+        }
+    }
+
+    @Test
     void installationsskriptEnthaeltRueckfall() {
         String cmd = UpdateInstaller.skript(Path.of("C:/Postkorb/postkorb-schnittstelle.jar"),
                 Path.of("C:/Postkorb/Eingang/updates/postkorb-schnittstelle-1.0.7.jar"),

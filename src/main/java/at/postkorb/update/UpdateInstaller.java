@@ -25,6 +25,29 @@ public final class UpdateInstaller {
         return updateDir.resolve("ok-" + version);
     }
 
+    /**
+     * Entfernt Überbleibsel früherer Updates: Erfolgsmarken anderer Versionen und heruntergeladene
+     * JARs, die nicht neuer als die laufende Version sind. Die Marke der laufenden Version bleibt,
+     * weil update.cmd nach dem Start noch bis zu 90 Sekunden darauf wartet.
+     */
+    public static void aufraeumen(Path updateDir, String laufendeVersion) throws IOException {
+        if (!Files.isDirectory(updateDir)) {
+            return;
+        }
+        Version aktuell = Version.of(laufendeVersion);
+        try (var dateien = Files.list(updateDir)) {
+            for (Path p : dateien.toList()) {
+                String n = p.getFileName().toString();
+                boolean alteMarke = n.startsWith("ok-") && !n.equals("ok-" + laufendeVersion);
+                boolean alteJar = n.startsWith("postkorb-schnittstelle-") && n.endsWith(".jar")
+                        && !Version.of(n.substring("postkorb-schnittstelle-".length(), n.length() - 4)).istNeuerAls(aktuell);
+                if (alteMarke || alteJar) {
+                    Files.deleteIfExists(p);
+                }
+            }
+        }
+    }
+
     static String skript(Path jar, Path neu, Path javaw, Path config, Path marke, Path log) {
         return String.join("\r\n",
                 "@echo off",

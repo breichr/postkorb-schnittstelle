@@ -196,6 +196,7 @@ public final class TrayApp {
         try {
             Files.createDirectories(updateDir);
             Files.writeString(UpdateInstaller.erfolgsMarke(updateDir, version), "ok");
+            UpdateInstaller.aufraeumen(updateDir, version);
         } catch (IOException e) {
             LOG.log(Level.WARNING, "Erfolgsmarke für Update nicht schreibbar", e);
         }
