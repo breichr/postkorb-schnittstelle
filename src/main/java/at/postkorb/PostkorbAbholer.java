@@ -5,6 +5,7 @@ import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -31,12 +32,20 @@ public final class PostkorbAbholer {
     private final DocumentStore store;
     private final ProcessedStore processed;
     private final boolean loeschen;
+    private final Consumer<Zustellung> beiNeuerZustellung;
 
     public PostkorbAbholer(PostkorbGateway gateway, DocumentStore store, ProcessedStore processed, boolean loeschen) {
+        this(gateway, store, processed, loeschen, z -> { });
+    }
+
+    /** @param beiNeuerZustellung wird nach dem erfolgreichen Speichern jeder neuen Zustellung aufgerufen */
+    public PostkorbAbholer(PostkorbGateway gateway, DocumentStore store, ProcessedStore processed, boolean loeschen,
+            Consumer<Zustellung> beiNeuerZustellung) {
         this.gateway = gateway;
         this.store = store;
         this.processed = processed;
         this.loeschen = loeschen;
+        this.beiNeuerZustellung = beiNeuerZustellung;
     }
 
     public Ergebnis durchlauf() throws IOException {
@@ -68,6 +77,7 @@ public final class PostkorbAbholer {
                         processed.add(id);
                         neu++;
                         LOG.info(() -> "Gespeichert: " + id + " (" + z.anhaenge().size() + " Anhang/Anhänge) -> " + ziel);
+                        beiNeuerZustellung.accept(z);
                     }
                     gateway.abschliessen(id);
                     LOG.info(() -> "Im Postkorb abgeschlossen (CloseDelivery, Erfolg gemeldet): " + id);

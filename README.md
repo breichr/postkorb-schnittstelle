@@ -42,7 +42,8 @@ Wurde sie schon gespeichert und nur das Abschließen schlug fehl, wird sie nicht
 | SOAP-Anbindung (`ZuseAaSoapGateway`), gegen die offizielle XSD getestet | ✅ |
 | Download-Adresse und Beispielantwort laut USP-How-To (März 2025) | ✅ |
 | Test gegen den USP-Testzugang unter Windows (3 Nachrichten abgeholt, Prüfsummen ok) | ✅ |
-| Echtbetrieb | ⏳ |
+| Echtbetrieb (erste Zustellungen abgeholt) | ✅ |
+| Programm im Infobereich mit Benachrichtigungen | ✅ (Logik getestet, Oberfläche unter Windows zu prüfen) |
 
 ## Voraussetzungen im USP
 
@@ -75,6 +76,8 @@ C:\Postkorb\
   postkorb-schnittstelle.jar
   postkorb.cmd                 (aus windows\)
   aufgabe-einrichten.ps1       (aus windows\)
+  infobereich-einrichten.ps1   (aus windows\)
+  postkorb-infobereich.cmd     (aus windows\)
   java-einrichten.ps1          (aus windows\)
   config\postkorb.properties   (aus config\postkorb.properties.example)
   config\brz_ca.cer
@@ -110,7 +113,8 @@ Alle folgenden Befehle sind für **PowerShell** geschrieben (in der klassischen 
    ```powershell
    .\postkorb.cmd
    ```
-4. Regelmäßige Abholung einrichten (PowerShell):
+4. Regelmäßige Abholung einrichten – **empfohlen: Programm im Infobereich** (siehe unten).
+   Alternativ über die Windows-Aufgabenplanung (PowerShell):
    ```powershell
    powershell -ExecutionPolicy Bypass -File .\aufgabe-einrichten.ps1 -Pfad C:\Postkorb -IntervallMinuten 60
    ```
@@ -120,6 +124,37 @@ Alle folgenden Befehle sind für **PowerShell** geschrieben (in der klassischen 
    [Environment]::SetEnvironmentVariable("POSTKORB_KEYSTORE_PASSWORD", "EuerPasswort", "User")
    ```
    Alternativ läuft `postkorb.cmd --loop` dauerhaft, z. B. als Dienst über NSSM oder WinSW.
+
+### Programm im Infobereich (empfohlen für Einzelplatz-PCs)
+
+Ein Symbol neben der Uhr, das beim Anmelden startet, beim Start und danach alle
+`poll.interval.minutes` abholt und meldet, was passiert:
+
+| Symbol | Bedeutung |
+|---|---|
+| 🟩 grün | alles in Ordnung |
+| 🟦 blau | neue Post seit dem letzten Öffnen des Eingangs |
+| ⬜ grau | Abholung läuft gerade |
+| 🟧 orange | Warnung, z. B. Client-Zertifikat läuft in weniger als 30 Tagen ab |
+| 🟥 rot | Fehler (keine Verbindung, Zertifikat abgelaufen, Zustellung fehlgeschlagen …) |
+
+- **Benachrichtigung** bei neuer Post mit Absender und Betreff; RSa-Zustellungen werden
+  hervorgehoben („Frist beachten!“). Klick auf die Meldung oder Doppelklick auf das Symbol öffnet den Eingang.
+- **Rechtsklick-Menü:** Status der letzten Abholung, Jetzt abholen, Eingang öffnen, Protokoll öffnen, Beenden.
+- Fehler und Zertifikatswarnungen werden gemeldet, aber nicht bei jedem Lauf wiederholt.
+- Abholungen laufen nie parallel: Ein gleichzeitiger Aufruf von `postkorb.cmd` wird übersprungen.
+
+Einrichten (legt Verknüpfungen im Autostart und Startmenü an, fragt einmalig das Zertifikats-Passwort ab
+und startet das Programm):
+
+```powershell
+cd C:\Postkorb
+powershell -ExecutionPolicy Bypass -File .\infobereich-einrichten.ps1
+```
+
+Entfernen: `.\infobereich-einrichten.ps1 -Entfernen`. Manuell starten: `postkorb-infobereich.cmd`
+oder Startmenü → „USP Postkorb“. Das Programm läuft nur, solange der Benutzer angemeldet ist; was
+in der Zwischenzeit eintrifft, wird nach der Anmeldung abgeholt.
 
 ### Ablage
 
@@ -182,6 +217,7 @@ at.postkorb
 ├── gateway.PostkorbGateway   fachliche Schnittstelle
 ├── zuseaa.ZuseAaSoapGateway  SOAP-1.2-Client für die Automatische Abholung (JAXB aus zuseaa_p2.wsdl)
 ├── gateway.DemoGateway       lokaler Testordner
+├── tray.*                    Programm im Infobereich (TrayController = Logik, AwtTrayView = Oberfläche)
 ├── download.HttpAttachmentDownloader   REST-GET für Anhänge über mTLS
 └── store.*                   Ablage, Dateinamen, Liste abgeholter IDs
 ```

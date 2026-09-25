@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Richtet in der Windows-Aufgabenplanung eine regelmäßige Postkorb-Abholung ein.
 .EXAMPLE

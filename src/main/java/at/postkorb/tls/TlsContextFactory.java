@@ -73,6 +73,24 @@ public final class TlsContextFactory {
         return ctx;
     }
 
+    /** Das Client-Zertifikat (für die Warnung vor dessen Ablauf). */
+    public static X509Certificate clientCertificate(Config cfg) throws IOException, GeneralSecurityException {
+        KeyStore ks = loadKeyStore(cfg.keystoreType(), cfg.keystorePath(), cfg.keystorePassword());
+        String alias = cfg.keyAlias();
+        if (alias == null) {
+            requireSingleKey(ks);
+            for (String a : Collections.list(ks.aliases())) {
+                if (ks.isKeyEntry(a)) {
+                    alias = a;
+                }
+            }
+        }
+        if (ks.getCertificate(alias) instanceof X509Certificate x) {
+            return x;
+        }
+        throw new IllegalArgumentException("Kein X.509-Zertifikat zum Schlüssel '" + alias + "'");
+    }
+
     static KeyStore loadKeyStore(String type, Path path, char[] password) throws IOException, GeneralSecurityException {
         KeyStore ks = KeyStore.getInstance(type);
         if (type.startsWith("Windows-")) {

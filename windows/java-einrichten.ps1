@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Lädt eine Java-21-Laufzeit (Eclipse Temurin JRE) nach .\runtime.
   postkorb.cmd verwendet sie automatisch; ein installiertes Java (z. B. Java 8) bleibt unverändert.
