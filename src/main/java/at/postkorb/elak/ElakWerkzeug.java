@@ -51,14 +51,15 @@ public final class ElakWerkzeug {
             }
             ElakClient.MappentypInfo info;
             try {
-                info = elak.beschreibe(t.get().name());
+                info = elak.beschreibe(t.get().name(), t.get().id());
             } catch (IOException e) {
                 out.println("[!!] Mappentyp '" + gesucht + "' vorhanden (id " + t.get().id() + "), Beschreibung fehlgeschlagen: "
                         + e.getMessage());
                 probleme++;
                 continue;
             }
-            out.println("[OK] Mappentyp '" + info.name() + "' (id " + info.id() + ")");
+            out.println("[OK] Mappentyp '" + t.get().name() + "' (id " + t.get().id() + ", Beschreibung mit categories='"
+                    + elak.kategorien() + "')");
             out.println("       Register: " + info.register().stream().map(r -> r.name() + " (" + r.id() + ")").toList());
             out.println("       Felder:   " + info.felder());
             if (k.register() != null && info.register().stream().noneMatch(r -> k.register().equals(r.name()))) {
@@ -117,7 +118,8 @@ public final class ElakWerkzeug {
         if (k.register() != null) {
             return k.register();
         }
-        List<ElakClient.Eintrag> reg = elak.beschreibe(mappentyp).register();
+        Optional<ElakClient.Eintrag> typ = finde(elak.mappentypen(), mappentyp);
+        List<ElakClient.Eintrag> reg = elak.beschreibe(mappentyp, typ.map(ElakClient.Eintrag::id).orElse(null)).register();
         if (reg.isEmpty()) {
             throw new IOException("Mappentyp '" + mappentyp + "' hat keine Dokumentregister");
         }

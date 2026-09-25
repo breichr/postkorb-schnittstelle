@@ -93,12 +93,50 @@ public final class ElakClient implements AutoCloseable {
         return eintraege(r, "filetype");
     }
 
+    /**
+     * Welche Teile describeFileType liefern soll. Mit leerem Wert antwortet DOCUMENTS mit einer leeren
+     * Beschreibung; die genaue Schreibweise ist nicht dokumentiert, daher werden Varianten probiert
+     * und die erste funktionierende gemerkt.
+     */
+    static final List<String> KATEGORIEN = List.of(
+            "fields,docregisters,workflowinfo",
+            "fields;docregisters;workflowinfo",
+            "fields docregisters workflowinfo",
+            "docregisters",
+            "all",
+            "*");
+    private String kategorien;
+
+    public String kategorien() {
+        return kategorien;
+    }
+
+    /** @param mappentyp Name des Mappentyps; wenn {@code id} gesetzt ist, wird nach ID gefragt */
     public MappentypInfo beschreibe(String mappentyp) throws IOException {
-        Element r = call("describeFileType", session, felder("name", mappentyp, "categories", ""));
-        Element d = child(r, "description");
-        if (d == null) {
-            throw new IOException("describeFileType: keine Beschreibung für " + mappentyp);
+        return beschreibe(mappentyp, null);
+    }
+
+    public MappentypInfo beschreibe(String mappentyp, String id) throws IOException {
+        List<String> varianten = kategorien != null ? List.of(kategorien) : KATEGORIEN;
+        for (String kat : varianten) {
+            Element r = call("describeFileType", session, body -> {
+                if (id != null) {
+                    add(body, "id", id);
+                } else {
+                    add(body, "name", mappentyp);
+                }
+                add(body, "categories", kat);
+            });
+            Element d = child(r, "description");
+            if (d != null && !children(d).isEmpty()) {
+                kategorien = kat;
+                return info(d);
+            }
         }
+        throw new IOException("describeFileType liefert für '" + mappentyp + "' keine Beschreibung");
+    }
+
+    private static MappentypInfo info(Element d) {
         List<Eintrag> register = new ArrayList<>();
         Element regs = child(d, "docregisters");
         if (regs != null) {
@@ -113,6 +151,7 @@ public final class ElakClient implements AutoCloseable {
         }
         return new MappentypInfo(text(d, "id"), text(d, "name"), register, felder);
     }
+
 
     public List<Eintrag> workflows() throws IOException {
         Element r = call("getWorkflowPattern", session, Map.of());
@@ -237,7 +276,7 @@ public final class ElakClient implements AutoCloseable {
 
     static String maskiere(String xml) {
         return xml.replaceAll("(<passwd>)[^<]*(</passwd>)", "$1***$2")
-                .replaceAll("(<(?:\\w+:)?sessionID>)[^<]*(</)", "$1***$2")
+                .replaceAll("(<(?:\\w+:)?sessionID\\b[^>]*>)[^<]*(</)", "$1***$2")
                 .replaceAll("(<session>)[^<]*(</session>)", "$1***$2")
                 .replaceAll("(<data>)[^<]{0,1000000}(</data>)", "$1…$2");
     }

@@ -108,8 +108,11 @@ class ElakClientTest {
     @Test
     void debugMaskiertGeheimes() {
         String m = ElakClient.maskiere("<passwd>geheim</passwd><DOCUMENTS:sessionID>4242</DOCUMENTS:sessionID>"
+                + "<DOCUMENTS:sessionID SOAP-ENV:mustUnderstand=\"true\">8324538520000</DOCUMENTS:sessionID>"
                 + "<session>99</session><data>JVBERi0=</data>");
-        assertEquals("<passwd>***</passwd><DOCUMENTS:sessionID>***</DOCUMENTS:sessionID><session>***</session><data>…</data>", m);
+        assertEquals("<passwd>***</passwd><DOCUMENTS:sessionID>***</DOCUMENTS:sessionID>"
+                + "<DOCUMENTS:sessionID SOAP-ENV:mustUnderstand=\"true\">***</DOCUMENTS:sessionID>"
+                + "<session>***</session><data>…</data>", m);
     }
 
     @Test
@@ -133,7 +136,7 @@ class ElakClientTest {
         }
         String out = bos.toString(StandardCharsets.UTF_8);
         assertEquals(0, rc, out);
-        assertTrue(out.contains("[OK] Mappentyp 'Dokument'"), out);
+        assertTrue(out.contains("[OK] Mappentyp 'Dokument' (id DA41226_fi20180000000002"), out);
         assertTrue(out.contains("Register: [Anlagen (reg_1), Schriftverkehr (reg_2)]"), out);
         assertTrue(out.contains("[OK] Workflow 'Outlook_ER' (id wf_13)"), out);
         assertTrue(aufrufe.stream().noneMatch(a -> a.startsWith("createFile") || a.startsWith("startWorkflow")),
@@ -200,9 +203,11 @@ class ElakClientTest {
                     yield "<DOCUMENTS:loginResponse><session>4242</session></DOCUMENTS:loginResponse>";
                 }
                 case "getFileTypes" -> "<DOCUMENTS:getFileTypesResponse>"
-                        + "<filetype><id>ft_1</id><name>Dokument</name></filetype>"
-                        + "<filetype><id>ft_2</id><name>Beleg</name></filetype></DOCUMENTS:getFileTypesResponse>";
-                case "describeFileType" -> "<DOCUMENTS:describeFileTypeResponse><description><name>" + text(op, "name")
+                        + "<filetype><id>DA41226_fi20180000000002</id><name>Dokument</name></filetype>"
+                        + "<filetype><id>DA41226_fi20180000000001</id><name>Beleg</name></filetype></DOCUMENTS:getFileTypesResponse>";
+                case "describeFileType" -> !"fields,docregisters,workflowinfo".equals(text(op, "categories"))
+                        ? "<DOCUMENTS:describeFileTypeResponse><description></description></DOCUMENTS:describeFileTypeResponse>"
+                        : "<DOCUMENTS:describeFileTypeResponse><description><name>" + text(op, "id")
                         + "</name><id>ft</id><fields><field><name>Betreff</name><id>f1</id><type>STRING</type></field></fields>"
                         + "<docregisters><docregister><name>Anlagen</name><id>reg_1</id></docregister>"
                         + "<docregister><name>Schriftverkehr</name><id>reg_2</id></docregister></docregisters>"
