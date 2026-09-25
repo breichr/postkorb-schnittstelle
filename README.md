@@ -8,12 +8,24 @@ Die Schnittstelle nutzt die offizielle Funktion **„Automatische Abholung“** 
 - SOAP-Webservice unter `https://autoabholung.meinpostkorb.brz.gv.at/soap`
 - beidseitig zertifikatsgesicherte Verbindung (Client-Zertifikat aus dem USP)
 - jeder Anhang wird über einen eigenen REST-GET-Aufruf geladen (mit derselben TLS-Absicherung)
-- vier SOAP-Funktionen, u. a. `GetDelivery` (eine Nachricht samt Daten abrufen) und `DeleteDelivery`
-  (eine bereits gelesene Nachricht löschen); die Anhänge tragen eine Prüfsumme nach ZUSEMSG 4.4
-- Schnittstellenbeschreibung: `zuseaa_p2.wsdl` samt `.xsd`-Dateien, im USP als Maven-Projekt erhältlich
+- Schnittstellenbeschreibung: `zuseaa_p2.wsdl` (SOAP 1.2) samt `.xsd`-Dateien aus dem USP-Beispielprojekt,
+  abgelegt unter `src/main/resources/wsdl` und `src/main/resources/zusemsg`
+- Serverzertifikat der BRZ-StammCA: `config/brz_ca.cer`
 
-> ⚠️ **Rechtlicher Hinweis:** Schon das Abrufen einer Nachricht über die Schnittstelle gilt als
-> Abholung. Die Nachricht ist danach im Postkorb „gelesen“, und die Zustellung gilt als bewirkt.
+### Ablauf eines Durchlaufs
+
+| Schritt | SOAP-Funktion | Bedeutung |
+|---|---|---|
+| 1 | `QueryDeliveries` mit `NewDeliveriesOnly` | IDs aller noch nicht abgeschlossenen Zustellungen (max. `query.limit` je Abfrage) |
+| 2 | `GetDelivery` | Metadaten (Absender, Betreff, GZ, Zustellqualität …) und Anhangsliste mit Größe und Prüfsumme |
+| 3 | REST-GET je Anhang | Download; Größe und Prüfsumme (SHA256/SHA512) werden geprüft. Anhang 1 ist immer der Nachrichtentext |
+| 4 | `CloseDelivery` | erst nachdem alles gespeichert ist: meldet dem Postkorb die erfolgreiche Verarbeitung |
+| 5 | `DeleteDelivery` | nur mit `delete.after.download=true` |
+
+Schlägt ein Schritt fehl, wird die Zustellung nicht abgeschlossen und beim nächsten Lauf erneut versucht.
+Wurde sie schon gespeichert und nur das Abschließen schlug fehl, wird sie nicht noch einmal heruntergeladen.
+
+> ⚠️ **Rechtlicher Hinweis:** Mit der Abholung über die Schnittstelle gilt die Zustellung als bewirkt.
 > Ab diesem Zeitpunkt laufen Fristen, z. B. für Beschwerden oder Zahlungen. Die heruntergeladenen
 > Dokumente müssen also verlässlich bei den zuständigen Personen oder im ERP/DMS ankommen.
 
@@ -27,7 +39,9 @@ Die Schnittstelle nutzt die offizielle Funktion **„Automatische Abholung“** 
 | Keine doppelten Downloads; optionales Löschen im Postkorb erst nach vollständigem Speichern | ✅ |
 | Logging, Exit-Codes, Aufgabenplanung / Dauerbetrieb | ✅ |
 | Demo-Modus ohne Zertifikat | ✅ |
-| **SOAP-Anbindung (`ZuseAaSoapGateway`)** | ⏳ braucht die WSDL aus dem USP |
+| SOAP-Anbindung (`ZuseAaSoapGateway`), gegen die offizielle XSD getestet | ✅ |
+| Adresse für den REST-Download der Anhänge (`attachment.url`) | ⏳ aus dem USP-How-To eintragen |
+| Test gegen den echten Postkorb | ⏳ |
 
 ## Voraussetzungen im USP
 
@@ -35,8 +49,8 @@ Die Schnittstelle nutzt die offizielle Funktion **„Automatische Abholung“** 
 2. Einem Benutzer ist die Rolle **„Postbevollmächtigter“** für „Mein Postkorb“ zugewiesen.
 3. Der Postbevollmächtigte aktiviert unter **Mein Postkorb → Einstellungen → Automatische Abholung**
    die automatische Abholung.
-4. Der USP-Administrator erzeugt dort das **Client-Zertifikat** und lädt es herunter,
-   zusammen mit dem **Maven-Projekt mit WSDL/XSD**.
+4. Der USP-Administrator erzeugt dort das **Client-Zertifikat** und lädt es herunter.
+   (WSDL/XSD und BRZ-CA sind bereits in diesem Projekt enthalten.)
 
 Anleitung des USP: [How-To Einrichtung der „Automatischen Abholung“](https://www.usp.gv.at/dam/jcr:0909b669-4372-438f-b3fd-c42a37ffc5f4/Mein_Postkorb_AutomatischeAbholung_HowTo.pdf)
 
@@ -49,15 +63,7 @@ mvn package
 ```
 
 Das Ergebnis ist `target\postkorb-schnittstelle.jar`, eine lauffähige JAR mit allen Abhängigkeiten.
-
-### SOAP-Anbindung aktivieren
-
-1. `zuseaa_p2.wsdl` und alle `.xsd`-Dateien aus dem USP-Maven-Projekt nach `src/main/wsdl/` kopieren.
-2. `mvn package` ausführen. Maven aktiviert dann automatisch das Profil `zuse-aa` und generiert den
-   JAX-WS-Client nach `at.postkorb.zuseaa.generated`.
-3. `at.postkorb.zuseaa.ZuseAaSoapGateway` implementiert `PostkorbGateway` mit den generierten Klassen
-   und hat einen Konstruktor `(Config, SSLContext)`. Diese Klasse ist noch zu schreiben, weil sie die
-   Operationen aus der WSDL kennen muss.
+Die JAXB-Klassen werden beim Bauen aus der WSDL erzeugt (Konfiguration wie im USP-Beispielprojekt).
 
 ## Einrichten unter Windows
 
@@ -69,11 +75,14 @@ C:\Postkorb\
   postkorb.cmd                 (aus windows\)
   aufgabe-einrichten.ps1       (aus windows\)
   config\postkorb.properties   (aus config\postkorb.properties.example)
+  config\brz_ca.cer
   zertifikat\client.p12
   runtime\                     (optional: mit jlink/jpackage gebündeltes Java)
 ```
 
-1. Konfiguration anpassen: `config\postkorb.properties`. Das Zertifikats-Passwort am besten als
+1. Konfiguration anpassen: `config\postkorb.properties`, insbesondere `tls.keystore.path` und
+   `attachment.url` (die Download-Adresse der Anhänge aus dem How-To des USP, mit den Platzhaltern
+   `{attachmentId}` und ggf. `{deliveryId}`). Das Zertifikats-Passwort am besten als
    Umgebungsvariable `POSTKORB_KEYSTORE_PASSWORD` setzen.
    Alternativ importiert man das Zertifikat in den Windows-Zertifikatsspeicher des Benutzers
    und setzt `tls.keystore.type=Windows-MY`.
@@ -96,8 +105,9 @@ C:\Postkorb\
 ```
 C:\Postkorb\Eingang\
   2026-09-25_Finanzamt Österreich_<Zustellungs-ID>\
+    <Nachrichtentext>     ← Anhang 1 ist immer der Text der Nachricht
     Bescheid.pdf
-    zustellung.txt        ← Absender, Betreff, Eingang, Anhänge
+    zustellung.txt        ← Absender, Betreff, Eingang, Geschäftszahl, Zustellqualität, Anhänge
   .abgeholt.txt           ← bereits abgeholte IDs
   logs\postkorb-0.log
 ```
@@ -122,17 +132,19 @@ output.dir=C:/Postkorb/Eingang
 ```
 
 Jeder Unterordner von `demo-inbox` gilt als Zustellung, jede Datei darin als Anhang.
-Mit `delete.after.download=true` werden die Unterordner nach `demo-inbox\.geloescht` verschoben.
+Abgeschlossene Zustellungen werden nach `demo-inbox\.abgeschlossen` verschoben,
+mit `delete.after.download=true` weiter nach `demo-inbox\.geloescht`.
 
 ## Aufbau
 
 ```
 at.postkorb
 ├── Main                      Kommandozeile, Logging, Modi
-├── PostkorbAbholer           Ablauf: abfragen → speichern und prüfen → merken → optional löschen
+├── PostkorbAbholer           Ablauf: abfragen → abrufen → speichern und prüfen → abschließen → optional löschen
 ├── config.Config             Properties + Umgebungsvariablen
-├── tls.TlsContextFactory     Client-Zertifikat (PKCS12 / Windows-MY), Truststore
-├── gateway.PostkorbGateway   fachliche Schnittstelle (SOAP-Implementierung folgt)
+├── tls.TlsContextFactory     Client-Zertifikat (PKCS12 / Windows-MY), BRZ-CA bzw. Truststore
+├── gateway.PostkorbGateway   fachliche Schnittstelle
+├── zuseaa.ZuseAaSoapGateway  SOAP-1.2-Client für die Automatische Abholung (JAXB aus zuseaa_p2.wsdl)
 ├── gateway.DemoGateway       lokaler Testordner
 ├── download.HttpAttachmentDownloader   REST-GET für Anhänge über mTLS
 └── store.*                   Ablage, Dateinamen, Liste abgeholter IDs

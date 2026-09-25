@@ -6,6 +6,14 @@
 gateway=soap
 soap.endpoint=https://autoabholung.meinpostkorb.brz.gv.at/soap
 
+# Adresse für den REST-Download der Anhänge ("AttachmentTransferProtocol") laut USP-How-To.
+# Platzhalter: {attachmentId} (Pflicht) und {deliveryId}. Die genaue Adresse steht im How-To-PDF
+# im Abschnitt zum Download der Attachments, sie ist NICHT in der WSDL enthalten.
+attachment.url=
+
+# Anzahl neuer Zustellungen pro Abfrage (1–1000); es wird automatisch nachgefragt, bis alle abgeholt sind
+query.limit=100
+
 # --- Client-Zertifikat (im USP unter Mein Postkorb > Einstellungen > Automatische Abholung erzeugt) ---
 # Variante A: .p12/.pfx-Datei
 tls.keystore.type=PKCS12
@@ -16,19 +24,19 @@ tls.keystore.password=
 #tls.keystore.type=Windows-MY
 #tls.key.alias=<Anzeigename des Zertifikats>
 
-# Nur nötig, wenn das Serverzertifikat nicht von einer Standard-CA stammt
-# (z. B. die vom USP bereitgestellte CA als .p12/.jks). Passwort ggf. über POSTKORB_TRUSTSTORE_PASSWORD.
-#tls.truststore.path=C:/Postkorb/zertifikat/truststore.p12
-#tls.truststore.password=
+# Vertrauenswürdige CA für das Serverzertifikat: die BRZ-StammCA aus dem USP (brz_ca.cer).
+# Es wird dann ausschließlich dieser CA vertraut. Alternativ ein Truststore (.p12/.jks,
+# Passwort ggf. über POSTKORB_TRUSTSTORE_PASSWORD).
+tls.truststore.path=brz_ca.cer
 
 # --- Ablage ---
 output.dir=C:/Postkorb/Eingang
 # Liste bereits abgeholter Zustellungen (Standard: <output.dir>\.abgeholt.txt)
 #state.file=C:/Postkorb/abgeholt.txt
 
-# Zustellung im Postkorb löschen, sobald alle Anhänge gespeichert und geprüft sind.
-# Standard: aus – die Nachrichten bleiben (als gelesen) im Postkorb sichtbar.
-# Hinweis: Schon das Abrufen gilt als Abholung, unabhängig von dieser Einstellung.
+# Nach dem Speichern wird jede Zustellung im Postkorb abgeschlossen (CloseDelivery) –
+# danach wird sie nicht mehr als "neu" geliefert. Zusätzlich löschen (DeleteDelivery)?
+# Standard: aus – die Nachrichten bleiben im Postkorb sichtbar.
 delete.after.download=false
 
 # Nur für --loop

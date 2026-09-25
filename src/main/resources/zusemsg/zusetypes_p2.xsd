@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema
+	xmlns:xs="http://www.w3.org/2001/XMLSchema"
+	xmlns:ztyp="http://reference.e-government.gv.at/namespace/zustellung/types/phase2/20240718#"
+	targetNamespace="http://reference.e-government.gv.at/namespace/zustellung/types/phase2/20240718#"
+	elementFormDefault="qualified"
+	attributeFormDefault="unqualified"
+	version="2.4.0-004">
+	<!-- ### ZUSE Simple Types #### -->
+	<xs:simpleType name="token37">
+		<xs:restriction base="xs:token">
+			<xs:minLength value="37"/>
+			<xs:maxLength value="37"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="token1..256">
+		<xs:restriction base="xs:token">
+			<xs:minLength value="1"/>
+			<xs:maxLength value="256"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="token1..512">
+		<xs:restriction base="xs:token">
+			<xs:minLength value="1"/>
+			<xs:maxLength value="512"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="token1..1024">
+		<xs:restriction base="xs:token">
+			<xs:minLength value="1"/>
+			<xs:maxLength value="1024"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="token1..500">
+		<xs:restriction base="xs:token">
+			<xs:minLength value="1"/>
+			<xs:maxLength value="500"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="token1..1000">
+		<xs:restriction base="xs:token">
+			<xs:minLength value="1"/>
+			<xs:maxLength value="1000"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="token1..1001">
+		<xs:restriction base="xs:token">
+			<xs:minLength value="1"/>
+			<xs:maxLength value="1001"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="string1..256">
+		<xs:restriction base="xs:token">
+			<xs:minLength value="1"/>
+			<xs:maxLength value="256"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="string1..512">
+		<xs:restriction base="xs:string">
+			<xs:minLength value="1"/>
+			<xs:maxLength value="512"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="string1..1024">
+		<xs:restriction base="xs:string">
+			<xs:minLength value="1"/>
+			<xs:maxLength value="1024"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="string1..4096">
+		<xs:restriction base="xs:string">
+			<xs:minLength value="1"/>
+			<xs:maxLength value="4096"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="string1..65536">
+		<xs:restriction base="xs:string">
+			<xs:minLength value="1"/>
+			<xs:maxLength value="65536"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="string1..500">
+		<xs:restriction base="xs:string">
+			<xs:minLength value="1"/>
+			<xs:maxLength value="500"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="string1..1000">
+		<xs:restriction base="xs:string">
+			<xs:minLength value="1"/>
+			<xs:maxLength value="1000"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="anyURI1..256">
+		<xs:restriction base="xs:anyURI">
+			<xs:minLength value="1"/>
+			<xs:maxLength value="256"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="anyURI1..1024">
+		<xs:restriction base="xs:anyURI">
+			<xs:minLength value="1"/>
+			<xs:maxLength value="1024"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="anySimpleType1..4096">
+		<xs:union>
+			<xs:simpleType>
+				<xs:restriction base="xs:string">
+					<xs:minLength value="1"/>
+					<xs:maxLength value="4096"/>
+				</xs:restriction>
+			</xs:simpleType>
+			<xs:simpleType>
+				<xs:restriction base="xs:token">
+					<xs:minLength value="1"/>
+					<xs:maxLength value="4096"/>
+				</xs:restriction>
+			</xs:simpleType>
+			<xs:simpleType>
+				<xs:restriction base="xs:integer"/>
+			</xs:simpleType>
+			<xs:simpleType>
+				<xs:restriction base="xs:decimal"/>
+			</xs:simpleType>
+			<xs:simpleType>
+				<xs:restriction base="xs:anyURI">
+					<xs:minLength value="1"/>
+					<xs:maxLength value="4096"/>
+				</xs:restriction>
+			</xs:simpleType>
+			<xs:simpleType>
+				<xs:annotation>
+					<xs:documentation>Mit diesem SimpleType können zwischen 1 und 3072 Bytes abgebildet werden. Der resultierende base64 String hat eine Länge zwischen 4 und 4096 Zeichen</xs:documentation>
+				</xs:annotation>
+				<xs:restriction base="xs:base64Binary">
+					<xs:minLength value="1"/>
+					<xs:maxLength value="3072"/>
+				</xs:restriction>
+			</xs:simpleType>
+			<xs:simpleType>
+				<xs:restriction base="xs:date"/>
+			</xs:simpleType>
+			<xs:simpleType>
+				<xs:restriction base="xs:dateTime"/>
+			</xs:simpleType>
+			<xs:simpleType>
+				<xs:restriction base="xs:time"/>
+			</xs:simpleType>
+		</xs:union>
+	</xs:simpleType>
+	<xs:simpleType name="positiveInteger">
+		<xs:restriction base="xs:integer">
+			<xs:minInclusive value="1"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="base64Binary4..256">
+		<xs:annotation>
+			<xs:documentation>Mit diesem SimpleType können zwischen 1 und 192 Bytes abgebildet werden. Der resultierende base64 String hat eine Länge zwischen 4 und 256 Zeichen.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:base64Binary">
+			<xs:minLength value="1"/>
+			<xs:maxLength value="192"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="base64Binary4..4096">
+		<xs:annotation>
+			<xs:documentation>Mit diesem SimpleType können zwischen 1 und 3072 Bytes abgebildet werden. Der resultierende base64 String hat eine Länge zwischen 4 und 4096 Zeichen</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:base64Binary">
+			<xs:minLength value="1"/>
+			<xs:maxLength value="3072"/>
+		</xs:restriction>
+	</xs:simpleType>
+</xs:schema>

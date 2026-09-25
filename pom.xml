@@ -14,10 +14,26 @@
     <maven.compiler.release>17</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <junit.version>5.11.4</junit.version>
-    <jaxws.version>4.0.3</jaxws.version>
+    <jaxb.plugin.version>4.0.8</jaxb.plugin.version>
   </properties>
 
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.glassfish.jaxb</groupId>
+        <artifactId>jaxb-bom</artifactId>
+        <version>4.0.5</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
   <dependencies>
+    <dependency>
+      <groupId>org.glassfish.jaxb</groupId>
+      <artifactId>jaxb-runtime</artifactId>
+    </dependency>
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
@@ -28,6 +44,35 @@
 
   <build>
     <plugins>
+      <!-- JAXB-Klassen aus der WSDL der Automatischen Abholung (Konfiguration wie im USP-Beispielprojekt) -->
+      <plugin>
+        <groupId>org.jvnet.jaxb</groupId>
+        <artifactId>jaxb-maven-plugin</artifactId>
+        <version>${jaxb.plugin.version}</version>
+        <executions>
+          <execution>
+            <id>automatischeAbholungWsdl</id>
+            <goals><goal>generate</goal></goals>
+            <configuration>
+              <schemaLanguage>WSDL</schemaLanguage>
+              <schemaDirectory>${project.basedir}/src/main/resources</schemaDirectory>
+              <schemaIncludes><schemaInclude>wsdl/*.wsdl</schemaInclude></schemaIncludes>
+              <bindingDirectory>${project.basedir}/src/main/resources/xjb</bindingDirectory>
+              <bindingIncludes><bindingInclude>xsdConfig.xjb</bindingInclude></bindingIncludes>
+              <args>
+                <arg>-Xnamespace-prefix</arg>
+              </args>
+              <plugins>
+                <plugin>
+                  <groupId>org.jvnet.jaxb</groupId>
+                  <artifactId>jaxb-plugins</artifactId>
+                  <version>${jaxb.plugin.version}</version>
+                </plugin>
+              </plugins>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
@@ -63,55 +108,4 @@
     </plugins>
   </build>
 
-  <profiles>
-    <!--
-      Wird automatisch aktiv, sobald die WSDL aus dem USP-Maven-Projekt
-      nach src/main/wsdl kopiert wurde. Generiert dann den SOAP-Client (JAX-WS).
-    -->
-    <profile>
-      <id>zuse-aa</id>
-      <activation>
-        <file>
-          <exists>${basedir}/src/main/wsdl/zuseaa_p2.wsdl</exists>
-        </file>
-      </activation>
-      <dependencies>
-        <dependency>
-          <groupId>com.sun.xml.ws</groupId>
-          <artifactId>jaxws-rt</artifactId>
-          <version>${jaxws.version}</version>
-        </dependency>
-      </dependencies>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>com.sun.xml.ws</groupId>
-            <artifactId>jaxws-maven-plugin</artifactId>
-            <version>${jaxws.version}</version>
-            <executions>
-              <execution>
-                <goals><goal>wsimport</goal></goals>
-                <configuration>
-                  <wsdlDirectory>${basedir}/src/main/wsdl</wsdlDirectory>
-                  <wsdlFiles><wsdlFile>zuseaa_p2.wsdl</wsdlFile></wsdlFiles>
-                  <packageName>at.postkorb.zuseaa.generated</packageName>
-                  <wsdlLocation>/wsdl/zuseaa_p2.wsdl</wsdlLocation>
-                  <extension>true</extension>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-        <resources>
-          <resource>
-            <directory>src/main/resources</directory>
-          </resource>
-          <resource>
-            <directory>src/main/wsdl</directory>
-            <targetPath>wsdl</targetPath>
-          </resource>
-        </resources>
-      </build>
-    </profile>
-  </profiles>
 </project>

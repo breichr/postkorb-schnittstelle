@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<wsdl:definitions xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" xmlns:soap12="http://schemas.xmlsoap.org/wsdl/soap12/" xmlns:amod="http://reference.e-government.gv.at/namespace/zustellung/amod/phase2/20181206#" xmlns:aa="http://reference.e-government.gv.at/namespace/zustellung/autoabholung/phase2/20181206#" xmlns:service="http://reference.e-government.gv.at/namespace/zustellung/autoabholung-service/phase2/20181206#" targetNamespace="http://reference.e-government.gv.at/namespace/zustellung/autoabholung-service/phase2/20181206#">
+	<wsdl:types>
+		<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:vc="http://www.w3.org/2007/XMLSchema-versioning" elementFormDefault="qualified" attributeFormDefault="unqualified" vc:minVersion="1.1" version="2.2.0" xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/">
+			<xs:import namespace="http://reference.e-government.gv.at/namespace/zustellung/autoabholung/phase2/20181206#" schemaLocation="zuseaa_p2.xsd"/>
+		</xs:schema>
+	</wsdl:types>
+	<wsdl:message name="QueryDeliveriesRequest">
+		<wsdl:part name="QueryDeliveriesRequest" element="aa:QueryDeliveriesRequest">
+		</wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="QueryDeliveriesResponse">
+		<wsdl:part name="QueryDeliveriesResponse" element="aa:QueryDeliveriesResponse">
+		</wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="GetDeliveryRequest">
+		<wsdl:part name="GetDeliveryRequest" element="aa:GetDeliveryRequest">
+		</wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="GetDeliveryResponse">
+		<wsdl:part name="GetDeliveryResponse" element="aa:GetDeliveryResponse">
+		</wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="CloseDeliveryRequest">
+		<wsdl:part name="CloseDeliveryRequest" element="aa:CloseDeliveryRequest">
+		</wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="CloseDeliveryResponse">
+		<wsdl:part name="CloseDeliveryResponse" element="aa:CloseDeliveryResponse">
+		</wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="DeleteDeliveryRequest">
+		<wsdl:part name="DeleteDeliveryRequest" element="aa:DeleteDeliveryRequest">
+		</wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="DeleteDeliveryResponse">
+		<wsdl:part name="DeleteDeliveryResponse" element="aa:DeleteDeliveryResponse">
+		</wsdl:part>
+	</wsdl:message>
+	<wsdl:portType name="AutoCollectionPort">
+		<wsdl:operation name="QueryDeliveries">
+			<wsdl:input name="QueryDeliveriesRequest" message="service:QueryDeliveriesRequest"/>
+			<wsdl:output name="QueryDeliveriesResponse" message="service:QueryDeliveriesResponse"/>
+		</wsdl:operation>
+		<wsdl:operation name="GetDelivery">
+			<wsdl:input name="GetDeliveryRequest" message="service:GetDeliveryRequest"/>
+			<wsdl:output name="GetDeliveryResponse" message="service:GetDeliveryResponse"/>
+		</wsdl:operation>
+		<wsdl:operation name="CloseDelivery">
+			<wsdl:input name="CloseDeliveryRequest" message="service:CloseDeliveryRequest">
+			</wsdl:input>
+			<wsdl:output name="CloseDeliveryResponse" message="service:CloseDeliveryResponse">
+			</wsdl:output>
+		</wsdl:operation>
+		<wsdl:operation name="DeleteDelivery">
+			<wsdl:input name="DeleteDeliveryRequest" message="service:DeleteDeliveryRequest"/>
+			<wsdl:output name="DeleteDeliveryResponse" message="service:DeleteDeliveryResponse"/>
+		</wsdl:operation>
+	</wsdl:portType>
+	<wsdl:binding name="AutoCollectionPortSoap12" type="service:AutoCollectionPort">
+		<soap12:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+		<wsdl:operation name="QueryDeliveries">
+			<soap12:operation soapActionRequired="false"/>
+			<wsdl:input name="QueryDeliveriesRequest">
+				<soap12:body use="literal"/>
+			</wsdl:input>
+			<wsdl:output name="QueryDeliveriesResponse">
+				<soap12:body use="literal"/>
+			</wsdl:output>
+		</wsdl:operation>
+		<wsdl:operation name="GetDelivery">
+			<soap12:operation soapActionRequired="false"/>
+			<wsdl:input name="GetDeliveryRequest">
+				<soap12:body use="literal"/>
+			</wsdl:input>
+			<wsdl:output name="GetDeliveryResponse">
+				<soap12:body use="literal"/>
+			</wsdl:output>
+		</wsdl:operation>
+		<wsdl:operation name="CloseDelivery">
+			<soap12:operation soapActionRequired="false"/>
+			<wsdl:input name="CloseDeliveryRequest">
+				<soap12:body use="literal"/>
+			</wsdl:input>
+			<wsdl:output name="CloseDeliveryResponse">
+				<soap12:body use="literal"/>
+			</wsdl:output>
+		</wsdl:operation>
+		<wsdl:operation name="DeleteDelivery">
+			<soap12:operation soapActionRequired="false"/>
+			<wsdl:input name="DeleteDeliveryRequest">
+				<soap12:body use="literal"/>
+			</wsdl:input>
+			<wsdl:output name="DeleteDeliveryResponse">
+				<soap12:body use="literal"/>
+			</wsdl:output>
+		</wsdl:operation>
+	</wsdl:binding>
+	<wsdl:service name="AutoCollectionPortService">
+		<wsdl:port name="AutoCollectionPortSoap12" binding="service:AutoCollectionPortSoap12">
+			<soap12:address location="/extern"/>
+		</wsdl:port>
+	</wsdl:service>
+</wsdl:definitions>

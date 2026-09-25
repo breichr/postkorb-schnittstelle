@@ -8,6 +8,8 @@ import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.Principal;
 import java.security.PrivateKey;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.Collections;
 import javax.net.ssl.KeyManager;
@@ -29,8 +31,9 @@ import at.postkorb.config.Config;
  *   <li>{@code tls.keystore.type=PKCS12} – .p12/.pfx-Datei (aus dem USP heruntergeladen)</li>
  *   <li>{@code tls.keystore.type=Windows-MY} – Zertifikatsspeicher des angemeldeten Windows-Benutzers</li>
  * </ul>
- * Server-Vertrauen: optionaler Truststore, sonst die Standard-CAs der Java-Laufzeit
- * (bzw. mit {@code Windows-ROOT} der Windows-Stammzertifikatsspeicher).
+ * Server-Vertrauen: {@code tls.truststore.path} – entweder ein CA-Zertifikat (.cer/.crt/.pem,
+ * z. B. die BRZ-StammCA aus dem USP) oder ein Truststore (.p12/.jks); ohne Angabe gelten die
+ * Standard-CAs der Java-Laufzeit.
  */
 public final class TlsContextFactory {
 
@@ -55,8 +58,12 @@ public final class TlsContextFactory {
 
         TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
         if (cfg.truststorePath() != null) {
-            String type = cfg.truststorePath().toString().toLowerCase().endsWith(".jks") ? "JKS" : "PKCS12";
-            tmf.init(loadKeyStore(type, cfg.truststorePath(), cfg.truststorePassword()));
+            String name = cfg.truststorePath().toString().toLowerCase();
+            if (name.endsWith(".cer") || name.endsWith(".crt") || name.endsWith(".pem")) {
+                tmf.init(loadCertificates(cfg.truststorePath()));
+            } else {
+                tmf.init(loadKeyStore(name.endsWith(".jks") ? "JKS" : "PKCS12", cfg.truststorePath(), cfg.truststorePassword()));
+            }
         } else {
             tmf.init((KeyStore) null);
         }
@@ -77,6 +84,22 @@ public final class TlsContextFactory {
         }
         try (InputStream in = Files.newInputStream(path)) {
             ks.load(in, password);
+        }
+        return ks;
+    }
+
+    /** Lädt CA-Zertifikate (PEM oder DER, z. B. brz_ca.cer aus dem USP) als Truststore. */
+    static KeyStore loadCertificates(Path path) throws IOException, GeneralSecurityException {
+        KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
+        ks.load(null, null);
+        int i = 0;
+        try (InputStream in = Files.newInputStream(path)) {
+            for (Certificate c : CertificateFactory.getInstance("X.509").generateCertificates(in)) {
+                ks.setCertificateEntry("ca-" + i++, c);
+            }
+        }
+        if (i == 0) {
+            throw new IllegalArgumentException("Keine Zertifikate in " + path);
         }
         return ks;
     }

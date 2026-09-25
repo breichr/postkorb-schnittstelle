@@ -7,7 +7,6 @@ import java.util.logging.FileHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
-import javax.net.ssl.SSLContext;
 
 import at.postkorb.config.Config;
 import at.postkorb.gateway.DemoGateway;
@@ -15,6 +14,7 @@ import at.postkorb.gateway.PostkorbGateway;
 import at.postkorb.store.DocumentStore;
 import at.postkorb.store.ProcessedStore;
 import at.postkorb.tls.TlsContextFactory;
+import at.postkorb.zuseaa.ZuseAaSoapGateway;
 
 /**
  * Aufruf:
@@ -101,27 +101,10 @@ public final class Main {
                 }
                 return new DemoGateway(cfg.demoInbox());
             case "soap":
-                SSLContext ssl = TlsContextFactory.create(cfg);
-                return createSoapGateway(cfg, ssl);
+                return new ZuseAaSoapGateway(cfg, TlsContextFactory.create(cfg));
             default:
                 throw new IllegalArgumentException("Unbekanntes gateway: " + cfg.gateway() + " (erlaubt: soap, demo)");
         }
-    }
-
-    /**
-     * Die SOAP-Implementierung ({@code at.postkorb.zuseaa.ZuseAaSoapGateway}) entsteht aus der
-     * WSDL des USP und wird deshalb per Reflection geladen – so lässt sich das Projekt
-     * auch ohne WSDL bauen und im Demo-Modus testen.
-     */
-    private static PostkorbGateway createSoapGateway(Config cfg, SSLContext ssl) throws Exception {
-        Class<?> impl;
-        try {
-            impl = Class.forName("at.postkorb.zuseaa.ZuseAaSoapGateway");
-        } catch (ClassNotFoundException e) {
-            throw new IllegalStateException("SOAP-Anbindung nicht enthalten: zuerst die WSDL aus dem USP nach "
-                    + "src/main/wsdl kopieren und neu bauen (siehe README).", e);
-        }
-        return (PostkorbGateway) impl.getConstructor(Config.class, SSLContext.class).newInstance(cfg, ssl);
     }
 
     private static void setupFileLogging(Path logDir) throws IOException {

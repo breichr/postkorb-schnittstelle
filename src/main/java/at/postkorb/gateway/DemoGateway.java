@@ -5,7 +5,6 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
@@ -13,7 +12,8 @@ import java.util.stream.Stream;
 /**
  * Simuliert den Postkorb mit einem lokalen Ordner – zum Testen der Abläufe ohne Zertifikat.
  * Jeder Unterordner von {@code demo.inbox} ist eine Zustellung, jede Datei darin ein Anhang.
- * Gelöschte Zustellungen werden in {@code <inbox>/.geloescht} verschoben.
+ * Abgeschlossene Zustellungen werden nach {@code <inbox>/.abgeschlossen} verschoben,
+ * gelöschte von dort nach {@code <inbox>/.geloescht}.
  */
 public final class DemoGateway implements PostkorbGateway {
 
@@ -25,22 +25,27 @@ public final class DemoGateway implements PostkorbGateway {
     }
 
     @Override
-    public List<Zustellung> abholbereit() throws IOException {
-        List<Zustellung> result = new ArrayList<>();
+    public List<String> neueZustellungen() throws IOException {
         try (Stream<Path> dirs = Files.list(inbox)) {
-            for (Path dir : dirs.filter(Files::isDirectory).filter(d -> !d.getFileName().toString().startsWith(".")).sorted().toList()) {
-                List<Anhang> anhaenge;
-                try (Stream<Path> files = Files.list(dir)) {
-                    anhaenge = files.filter(Files::isRegularFile).sorted()
-                            .map(f -> new Anhang(f.getFileName().toString(), probe(f), f.toUri()))
-                            .toList();
-                }
-                String id = dir.getFileName().toString();
-                result.add(new Zustellung(id, "Demo-Behörde", "Demo-Zustellung " + id,
-                        Files.getLastModifiedTime(dir).toInstant(), anhaenge));
-            }
+            return dirs.filter(Files::isDirectory)
+                    .map(d -> d.getFileName().toString())
+                    .filter(n -> !n.startsWith("."))
+                    .sorted()
+                    .toList();
         }
-        return result;
+    }
+
+    @Override
+    public Zustellung abrufen(String id) throws IOException {
+        Path dir = inbox.resolve(id);
+        List<Anhang> anhaenge;
+        try (Stream<Path> files = Files.list(dir)) {
+            anhaenge = files.filter(Files::isRegularFile).sorted()
+                    .map(f -> new Anhang(f.getFileName().toString(), probe(f), f.toUri()))
+                    .toList();
+        }
+        return new Zustellung(id, "Demo-Behörde", "Demo-Zustellung " + id,
+                Files.getLastModifiedTime(dir).toInstant(), anhaenge);
     }
 
     @Override
@@ -49,10 +54,25 @@ public final class DemoGateway implements PostkorbGateway {
     }
 
     @Override
-    public void loescheZustellung(Zustellung zustellung) throws IOException {
-        Path done = Files.createDirectories(inbox.resolve(".geloescht"));
-        Files.move(inbox.resolve(zustellung.id()), done.resolve(zustellung.id() + "_" + Instant.now().toEpochMilli()));
-        LOG.info(() -> "Demo: Zustellung gelöscht: " + zustellung.id());
+    public void abschliessen(String id) throws IOException {
+        move(inbox.resolve(id), inbox.resolve(".abgeschlossen"), id);
+        LOG.info(() -> "Demo: Zustellung abgeschlossen: " + id);
+    }
+
+    @Override
+    public void loeschen(String id) throws IOException {
+        move(inbox.resolve(".abgeschlossen").resolve(id), inbox.resolve(".geloescht"), id);
+        LOG.info(() -> "Demo: Zustellung gelöscht: " + id);
+    }
+
+    private static void move(Path from, Path targetDir, String id) throws IOException {
+        Files.createDirectories(targetDir);
+        Path target = targetDir.resolve(id);
+        if (Files.exists(target)) {
+            // gleiche ID schon einmal verarbeitet (z. B. erneut in die Demo-Inbox kopiert)
+            Files.move(target, targetDir.resolve(id + "_" + Instant.now().toEpochMilli()));
+        }
+        Files.move(from, target);
     }
 
     private static String probe(Path f) {

@@ -16,6 +16,8 @@ import java.util.Properties;
 public record Config(
         String gateway,
         URI soapEndpoint,
+        String attachmentUrlTemplate,
+        int queryLimit,
         String keystoreType,
         Path keystorePath,
         char[] keystorePassword,
@@ -44,6 +46,8 @@ public record Config(
         return new Config(
                 gateway,
                 URI.create(get(p, "soap.endpoint", DEFAULT_SOAP_ENDPOINT.toString())),
+                get(p, "attachment.url", null),
+                Integer.parseInt(get(p, "query.limit", "100")),
                 get(p, "tls.keystore.type", "PKCS12"),
                 optionalPath(base, get(p, "tls.keystore.path", null)),
                 secret(p, "tls.keystore.password", "POSTKORB_KEYSTORE_PASSWORD"),

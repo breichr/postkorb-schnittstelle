@@ -5,29 +5,29 @@ import java.io.InputStream;
 import java.util.List;
 
 /**
- * Fachliche Sicht auf die "Automatische Abholung" von Mein Postkorb.
- *
- * <p>Die konkrete SOAP-Implementierung wird gegen die WSDL {@code zuseaa_p2.wsdl}
- * generiert (siehe README). Damit bleibt der Rest der Anwendung unabhängig vom
- * generierten Code.
+ * Fachliche Sicht auf die "Automatische Abholung" von Mein Postkorb
+ * (SOAP-Funktionen QueryDeliveries, GetDelivery, CloseDelivery, DeleteDelivery).
  */
 public interface PostkorbGateway {
 
+    /** IDs der Zustellungen, die noch nicht über die Automatische Abholung abgeschlossen wurden. */
+    List<String> neueZustellungen() throws IOException;
+
     /**
-     * Liefert die Zustellungen im Postkorb samt Metadaten und Anhängen.
-     *
-     * <p>Achtung: Das Abrufen einer Nachricht (SOAP-Funktion GetDelivery) gilt als Abholung –
-     * die Nachricht ist danach gelesen (geschlossen), und die Zustellung ist rechtlich bewirkt.
+     * Ruft eine Zustellung samt Metadaten und Anhangsliste ab (GetDelivery).
+     * Achtung: Das Abrufen gilt als Abholung – die Zustellung ist damit rechtlich bewirkt.
      */
-    List<Zustellung> abholbereit() throws IOException;
+    Zustellung abrufen(String id) throws IOException;
 
     /** Öffnet den Inhalt eines Anhangs (REST-GET über dieselbe mTLS-Verbindung). */
     InputStream oeffneAnhang(Zustellung zustellung, Anhang anhang) throws IOException;
 
     /**
-     * Löscht die Zustellung im Postkorb (SOAP-Funktion DeleteDelivery). Das geht laut USP nur
-     * für bereits gelesene (= geschlossene) Nachrichten. Wird nur aufgerufen, wenn
-     * {@code delete.after.download=true} gesetzt ist und alle Anhänge sicher gespeichert sind.
+     * Meldet dem Postkorb, dass die Zustellung vollständig übertragen und weiterverarbeitet wurde
+     * (CloseDelivery). Danach erscheint sie nicht mehr unter {@link #neueZustellungen()}.
      */
-    void loescheZustellung(Zustellung zustellung) throws IOException;
+    void abschliessen(String id) throws IOException;
+
+    /** Löscht eine bereits abgeschlossene Zustellung im Postkorb (DeleteDelivery). */
+    void loeschen(String id) throws IOException;
 }

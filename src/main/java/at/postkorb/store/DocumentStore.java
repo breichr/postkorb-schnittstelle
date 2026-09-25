@@ -62,16 +62,22 @@ public final class DocumentStore {
                     .append("ID: ").append(z.id()).append('\n')
                     .append("Absender: ").append(nullToEmpty(z.absender())).append('\n')
                     .append("Betreff: ").append(nullToEmpty(z.betreff())).append('\n')
-                    .append("Eingang: ").append(z.eingang() != null ? z.eingang() : "").append('\n')
-                    .append("Anhänge:\n");
+                    .append("Eingang: ").append(z.eingang() != null ? z.eingang() : "").append('\n');
+            z.weitereAngaben().forEach((k, v) -> meta.append(k).append(": ").append(nullToEmpty(v)).append('\n'));
+            meta.append("Anhänge:\n");
             int n = 0;
             for (Anhang a : z.anhaenge()) {
                 n++;
                 String name = unique(FileNames.sanitize(a.dateiname(), "anhang_" + n), used);
                 MessageDigest md = a.pruefsumme() != null ? Pruefsumme.digest(a.pruefsummenAlgorithmus()) : null;
+                long bytes;
                 try (InputStream raw = source.open(a);
                         InputStream in = md != null ? new DigestInputStream(raw, md) : raw) {
-                    Files.copy(in, tmp.resolve(name));
+                    bytes = Files.copy(in, tmp.resolve(name));
+                }
+                if (a.groesse() != null && a.groesse() != bytes) {
+                    throw new IOException("Anhang '" + a.dateiname() + "' der Zustellung " + z.id() + " ist unvollständig: "
+                            + bytes + " statt " + a.groesse() + " Bytes");
                 }
                 if (md != null && !Pruefsumme.stimmt(md.digest(), a.pruefsumme())) {
                     throw new IOException("Prüfsumme stimmt nicht für Anhang '" + a.dateiname() + "' der Zustellung " + z.id());

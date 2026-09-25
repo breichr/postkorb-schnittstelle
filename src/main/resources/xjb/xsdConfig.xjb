@@ -1,0 +1,16 @@
+<jaxb:bindings
+        xmlns:jaxb="https://jakarta.ee/xml/ns/jaxb"
+        xmlns:xs="http://www.w3.org/2001/XMLSchema"
+        xmlns:annox="urn:jaxb.jvnet.org:annox"
+        xmlns:namespace="urn:jaxb.jvnet.org:plugin:namespace-prefix"
+        version="3.0">
+
+    <!-- zusemsg -->
+    <jaxb:bindings scd="x-schema::aa"
+                   xmlns:aa="http://reference.e-government.gv.at/namespace/zustellung/autoabholung/phase2/20181206#">
+        <jaxb:bindings>
+            <namespace:prefix name="aa"/>
+        </jaxb:bindings>
+    </jaxb:bindings>
+
+</jaxb:bindings>
