@@ -185,6 +185,23 @@ cd C:\Postkorb
   Erst Versionen mit diesem Schlüssel können Updates prüfen und installieren; die erste solche
   Version wird einmalig von Hand installiert.
 
+### ELAK-Anbindung (in Arbeit)
+
+Ziel: Jede abgeholte Zustellung wird PDF für PDF in den k5 ELAK (otris DOCUMENTS bei gemdat)
+übernommen – Dokumente als Mappentyp *Dokument* mit Workflow `Dokument`, Rechnungen als *Beleg*
+mit Workflow `Outlook_ER`, genau wie mit dem Outlook-Add-In. Verwendet wird dieselbe SOAP-Schnittstelle
+(`DOCUMENTS-4.0.wsdl`) wie vom Add-In; die Nutzung ist mit gemdat abgeklärt.
+
+Erster Schritt – Verbindung prüfen (in `config\postkorb.properties` `elak.benutzer` und `elak.mandant` eintragen):
+
+```powershell
+.\runtime\bin\java.exe -jar postkorb-schnittstelle.jar --config config\postkorb.properties --elak-pruefen
+```
+
+Meldet sich an und prüft **nur lesend**, ob Mappentypen, Register und Workflows vorhanden sind.
+Danach kann mit `--elak-testmappe <datei.pdf>` genau eine Mappe vom Typ *Dokument* **ohne Workflow**
+angelegt werden, um das Ergebnis im ELAK anzusehen (danach wieder löschen).
+
 ### Ablage
 
 ```

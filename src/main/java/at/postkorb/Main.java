@@ -9,6 +9,7 @@ import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 
 import at.postkorb.config.Config;
+import at.postkorb.elak.ElakWerkzeug;
 import at.postkorb.gateway.DemoGateway;
 import at.postkorb.gateway.PostkorbGateway;
 import at.postkorb.store.DocumentStore;
@@ -29,6 +30,8 @@ import at.postkorb.zuseaa.ZuseAaSoapGateway;
  *   <li>{@code --loop}: läuft dauerhaft und holt alle {@code poll.interval.minutes} ab.</li>
  *   <li>{@code --check-tls}: prüft nur, ob Client-Zertifikat und Truststore geladen werden können.</li>
  *   <li>{@code --tray}: Programm im Windows-Infobereich (mit javaw.exe starten).</li>
+ *   <li>{@code --elak-pruefen}: ELAK-Anbindung nur lesend prüfen.</li>
+ *   <li>{@code --elak-testmappe datei.pdf}: eine Testmappe ohne Workflow im ELAK anlegen.</li>
  * </ul>
  */
 public final class Main {
@@ -41,9 +44,15 @@ public final class Main {
         System.setProperty("java.util.logging.SimpleFormatter.format", "%1$tF %1$tT %4$-7s %3$s - %5$s%6$s%n");
         Path configFile = Path.of("config", "postkorb.properties");
         String mode = "--once";
+        Path testdatei = null;
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
                 case "--config" -> configFile = Path.of(args[++i]);
+                case "--elak-pruefen" -> mode = args[i];
+                case "--elak-testmappe" -> {
+                    mode = args[i];
+                    testdatei = Path.of(args[++i]);
+                }
                 case "--once", "--loop", "--check-tls", "--tray" -> mode = args[i];
                 case "--help", "-h" -> {
                     System.out.println("java -jar postkorb-schnittstelle.jar [--config datei] [--once|--loop|--check-tls|--tray]");
@@ -54,6 +63,12 @@ public final class Main {
                     System.exit(1);
                 }
             }
+        }
+        if (mode.equals("--elak-pruefen")) {
+            System.exit(ElakWerkzeug.pruefen(configFile, System.out));
+        }
+        if (mode.equals("--elak-testmappe")) {
+            System.exit(ElakWerkzeug.testmappe(configFile, testdatei, System.out));
         }
         if (mode.equals("--tray")) {
             int rc = TrayApp.start(configFile);

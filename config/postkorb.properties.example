@@ -52,3 +52,16 @@ http.timeout.seconds=60
 # Täglich wird geprüft, ob es eine neue, signierte Version gibt; installiert wird erst nach Klick.
 #update.enabled=true
 #update.url=https://github.com/breichr/postkorb-schnittstelle/releases/latest/download/
+
+# --- ELAK (otris DOCUMENTS bei gemdat) – in Vorbereitung ---
+# Zugangsdaten wie im Outlook-Add-In (Registry: HKCU\SOFTWARE\Gemdat\DocumentsAddIn).
+# Passwort über die Umgebungsvariable POSTKORB_ELAK_PASSWORD (oder Abfrage beim Test).
+#elak.url=https://dce-ds-01.gemdatdce.at:12059
+#elak.benutzer=<Benutzername>
+#elak.mandant=<Mandant>
+#elak.dokument.mappentyp=Dokument
+#elak.dokument.workflow=Dokument
+#elak.rechnung.mappentyp=Beleg
+#elak.rechnung.workflow=Outlook_ER
+# Register für die Dateien (Standard: erstes Register des Mappentyps)
+#elak.register=
