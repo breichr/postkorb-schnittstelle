@@ -41,7 +41,8 @@ Wurde sie schon gespeichert und nur das Abschließen schlug fehl, wird sie nicht
 | Demo-Modus ohne Zertifikat | ✅ |
 | SOAP-Anbindung (`ZuseAaSoapGateway`), gegen die offizielle XSD getestet | ✅ |
 | Download-Adresse und Beispielantwort laut USP-How-To (März 2025) | ✅ |
-| Test gegen den Testzugang bzw. den echten Postkorb | ⏳ braucht euer Client-Zertifikat |
+| Test gegen den USP-Testzugang unter Windows (3 Nachrichten abgeholt, Prüfsummen ok) | ✅ |
+| Echtbetrieb | ⏳ |
 
 ## Voraussetzungen im USP
 
@@ -56,7 +57,7 @@ Anleitung des USP (Grundlage dieser Implementierung): [How-To Einrichtung der �
 
 ## Bauen
 
-Voraussetzung ist Java 17 oder neuer (z. B. [Eclipse Temurin](https://adoptium.net/)) und Maven.
+Zum Bauen: Java 17 oder neuer (z. B. [Eclipse Temurin](https://adoptium.net/)) und Maven.
 
 ```bat
 mvn package
@@ -74,27 +75,49 @@ C:\Postkorb\
   postkorb-schnittstelle.jar
   postkorb.cmd                 (aus windows\)
   aufgabe-einrichten.ps1       (aus windows\)
+  java-einrichten.ps1          (aus windows\)
   config\postkorb.properties   (aus config\postkorb.properties.example)
   config\brz_ca.cer
   zertifikat\client.p12
-  runtime\                     (optional: mit jlink/jpackage gebündeltes Java)
+  runtime\                     (Java 21, von java-einrichten.ps1 geladen)
 ```
 
+**Java:** Das Programm braucht Java 17 oder neuer; **Java 8 reicht nicht** (Fehler
+`UnsupportedClassVersionError … class file version 61.0`). Ohne ein anderes installiertes Java
+anzutasten, lädt `java-einrichten.ps1` eine Java-21-Laufzeit nach `C:\Postkorb\runtime`
+(keine Administratorrechte nötig). `postkorb.cmd` verwendet sie automatisch.
+
+```powershell
+cd C:\Postkorb
+powershell -ExecutionPolicy Bypass -File .\java-einrichten.ps1
+```
+
+Alle folgenden Befehle sind für **PowerShell** geschrieben (in der klassischen Eingabeaufforderung
+`cmd` entfällt das `.\` und Umgebungsvariablen setzt man mit `set NAME=Wert`).
+
 1. Konfiguration anpassen: `config\postkorb.properties`, insbesondere `tls.keystore.path` (die .p12-Datei
-   aus dem USP). Das Zertifikats-Passwort am besten als Umgebungsvariable `POSTKORB_KEYSTORE_PASSWORD` setzen.
+   aus dem USP). Das Zertifikats-Passwort am besten als Umgebungsvariable setzen:
+   ```powershell
+   $env:POSTKORB_KEYSTORE_PASSWORD = "EuerPasswort"
+   ```
    Alternativ importiert man das Zertifikat in den Windows-Zertifikatsspeicher des Benutzers
    und setzt `tls.keystore.type=Windows-MY`.
 2. Zertifikat prüfen:
-   ```bat
-   postkorb.cmd --check-tls
+   ```powershell
+   .\postkorb.cmd --check-tls
    ```
 3. Einmal manuell abholen:
-   ```bat
-   postkorb.cmd
+   ```powershell
+   .\postkorb.cmd
    ```
 4. Regelmäßige Abholung einrichten (PowerShell):
    ```powershell
-   .\aufgabe-einrichten.ps1 -Pfad C:\Postkorb -IntervallMinuten 60
+   powershell -ExecutionPolicy Bypass -File .\aufgabe-einrichten.ps1 -Pfad C:\Postkorb -IntervallMinuten 60
+   ```
+   Wichtig: `$env:POSTKORB_KEYSTORE_PASSWORD` gilt nur im aktuellen Fenster. Für die geplante
+   Aufgabe das Passwort dauerhaft für das Benutzerkonto setzen, unter dem die Aufgabe läuft:
+   ```powershell
+   [Environment]::SetEnvironmentVariable("POSTKORB_KEYSTORE_PASSWORD", "EuerPasswort", "User")
    ```
    Alternativ läuft `postkorb.cmd --loop` dauerhaft, z. B. als Dienst über NSSM oder WinSW.
 
@@ -130,7 +153,8 @@ soap.endpoint=https://demo-autoabholung.meinpostkorb.brz.gv.at/soap
 output.dir=C:/Postkorb/Test-Eingang
 ```
 
-Laut How-To liefert der Testzugang bei „neuen Nachrichten“ immer dieselben 3 Nachrichten;
+Mit `.\postkorb.cmd --config config\test.properties` o. ä. lässt sich eine eigene Konfiguration
+für den Test verwenden. Laut How-To liefert der Testzugang bei „neuen Nachrichten“ immer dieselben 3 Nachrichten;
 Abschließen und Löschen ändern die Testdaten nicht. Ein erfolgreicher Lauf legt also 3 Ordner an,
 jeweils mit `mailbody.txt` und den PDF-Anhängen, und meldet `neu=3`. Jeder weitere Lauf meldet
 `uebersprungen=3`.
