@@ -45,8 +45,16 @@ public final class PostkorbAbholer {
         // Der Postkorb liefert pro Abfrage höchstens "Limit" neue Zustellungen – so lange nachfragen,
         // bis keine unbearbeiteten mehr kommen.
         for (int abfrage = 0; abfrage < MAX_ABFRAGEN; abfrage++) {
-            List<String> ids = gateway.neueZustellungen().stream().filter(versucht::add).toList();
-            LOG.info(() -> ids.size() + " neue Zustellung(en) im Postkorb");
+            List<String> gemeldet = gateway.neueZustellungen();
+            List<String> ids = gemeldet.stream().filter(versucht::add).toList();
+            if (abfrage == 0) {
+                LOG.info(() -> gemeldet.size() + " neue Zustellung(en) im Postkorb");
+            } else if (gemeldet.size() > ids.size()) {
+                // Nach CloseDelivery dürften sie laut How-To nicht mehr als "neu" kommen
+                // (Ausnahme: der Testzugang, dessen Daten sich nie ändern).
+                LOG.warning(() -> (gemeldet.size() - ids.size())
+                        + " soeben bearbeitete Zustellung(en) werden vom Postkorb weiterhin als neu gemeldet");
+            }
             if (ids.isEmpty()) {
                 break;
             }
@@ -62,6 +70,7 @@ public final class PostkorbAbholer {
                         LOG.info(() -> "Gespeichert: " + id + " (" + z.anhaenge().size() + " Anhang/Anhänge) -> " + ziel);
                     }
                     gateway.abschliessen(id);
+                    LOG.info(() -> "Im Postkorb abgeschlossen (CloseDelivery, Erfolg gemeldet): " + id);
                     if (loeschen) {
                         gateway.loeschen(id);
                         LOG.info(() -> "Im Postkorb gelöscht: " + id);
