@@ -1,0 +1,8 @@
+target/
+*.p12
+*.pfx
+*.jks
+*.key
+config/postkorb.properties
+logs/
+downloads/

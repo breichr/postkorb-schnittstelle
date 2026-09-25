@@ -1,0 +1,37 @@
+# Konfiguration der USP-Postkorb-Schnittstelle
+# Kopieren nach config\postkorb.properties und anpassen.
+# Relative Pfade beziehen sich auf den Ordner dieser Datei.
+
+# soap = echter Postkorb ("Automatische Abholung"), demo = lokaler Testordner
+gateway=soap
+soap.endpoint=https://autoabholung.meinpostkorb.brz.gv.at/soap
+
+# --- Client-Zertifikat (im USP unter Mein Postkorb > Einstellungen > Automatische Abholung erzeugt) ---
+# Variante A: .p12/.pfx-Datei
+tls.keystore.type=PKCS12
+tls.keystore.path=C:/Postkorb/zertifikat/client.p12
+# Passwort besser über die Umgebungsvariable POSTKORB_KEYSTORE_PASSWORD setzen
+tls.keystore.password=
+# Variante B: Windows-Zertifikatsspeicher des Benutzers (certmgr.msc > Eigene Zertifikate)
+#tls.keystore.type=Windows-MY
+#tls.key.alias=<Anzeigename des Zertifikats>
+
+# Nur nötig, wenn das Serverzertifikat nicht von einer Standard-CA stammt
+# (z. B. die vom USP bereitgestellte CA als .p12/.jks). Passwort ggf. über POSTKORB_TRUSTSTORE_PASSWORD.
+#tls.truststore.path=C:/Postkorb/zertifikat/truststore.p12
+#tls.truststore.password=
+
+# --- Ablage ---
+output.dir=C:/Postkorb/Eingang
+# Liste bereits abgeholter Zustellungen (Standard: <output.dir>\.abgeholt.txt)
+#state.file=C:/Postkorb/abgeholt.txt
+
+# Abholung gegenüber dem Postkorb bestätigen, sobald alle Anhänge gespeichert sind
+confirm.after.download=true
+
+# Nur für --loop
+poll.interval.minutes=60
+http.timeout.seconds=60
+
+# Nur für gateway=demo: Ordner mit Unterordnern je Test-Zustellung
+#demo.inbox=C:/Postkorb/demo-inbox
