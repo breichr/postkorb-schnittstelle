@@ -170,6 +170,10 @@ ob es eine neuere Version gibt, und meldet sie. **Installiert wird erst nach Kli
    und startet die neue Version.
 3. Meldet sich die neue Version nicht innerhalb von 90 Sekunden als gestartet, wird automatisch die
    alte wiederhergestellt. Protokoll: `Eingang\updates\update.log`.
+4. Beim Start aktualisiert die neue Version auch die Windows-Skripte in `C:\Postkorb`
+   (`postkorb.cmd`, `postkorb-infobereich.cmd`, `infobereich-einrichten.ps1`; `java-einrichten.ps1` und
+   `aufgabe-einrichten.ps1` nur, wenn sie noch vorhanden sind). Konfiguration, Zertifikat und Eingang
+   bleiben unverändert.
 
 **Einmalige Einrichtung des Signaturschlüssels** (auf einem vertrauenswürdigen PC):
 
