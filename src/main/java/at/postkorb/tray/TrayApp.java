@@ -28,6 +28,7 @@ import at.postkorb.store.ProcessedStore;
 import at.postkorb.store.RunLock;
 import at.postkorb.tls.TlsContextFactory;
 import at.postkorb.update.Signatur;
+import at.postkorb.update.SkriptAktualisierung;
 import at.postkorb.update.UpdateInstaller;
 import at.postkorb.update.UpdateService;
 import at.postkorb.update.Version;
@@ -286,8 +287,9 @@ public final class TrayApp {
             Files.createDirectories(updateDir);
             Files.writeString(UpdateInstaller.erfolgsMarke(updateDir, version), "ok");
             UpdateInstaller.aufraeumen(updateDir, version);
-        } catch (IOException e) {
-            LOG.log(Level.WARNING, "Erfolgsmarke für Update nicht schreibbar", e);
+            SkriptAktualisierung.aktualisieren(eigeneJar().getParent());
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Update-Ordner bzw. Skripte konnten nicht aktualisiert werden", e);
         }
 
         long minuten = Math.max(1, cfg.pollInterval().toMinutes());

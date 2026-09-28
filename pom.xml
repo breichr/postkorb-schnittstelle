@@ -45,6 +45,20 @@
   </dependencies>
 
   <build>
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+      </resource>
+      <!-- Windows-Skripte: das Programm aktualisiert sie beim Start in seinem Ordner (siehe SkriptAktualisierung) -->
+      <resource>
+        <directory>windows</directory>
+        <targetPath>app-skripte</targetPath>
+        <includes>
+          <include>*.cmd</include>
+          <include>*.ps1</include>
+        </includes>
+      </resource>
+    </resources>
     <plugins>
       <!-- JAXB-Klassen aus der WSDL der Automatischen Abholung (Konfiguration wie im USP-Beispielprojekt) -->
       <plugin>
