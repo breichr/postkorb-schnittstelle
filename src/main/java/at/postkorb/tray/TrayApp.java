@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -18,6 +19,10 @@ import javax.swing.JOptionPane;
 import at.postkorb.Main;
 import at.postkorb.PostkorbAbholer;
 import at.postkorb.config.Config;
+import at.postkorb.elak.ElakClient;
+import at.postkorb.elak.ElakKonfiguration;
+import at.postkorb.elak.ElakUebergabe;
+import at.postkorb.elak.Warteliste;
 import at.postkorb.store.DocumentStore;
 import at.postkorb.store.ProcessedStore;
 import at.postkorb.store.RunLock;
@@ -72,22 +77,106 @@ public final class TrayApp {
             return t;
         });
         String version = Version.aktuell();
+        Warteliste warteliste = new Warteliste(cfg.outputDir());
+        ElakKonfiguration elakKonfig = null;
+        String elakStartfehler = null;
+        try {
+            if (ElakKonfiguration.konfiguriert(configFile)) {
+                elakKonfig = ElakKonfiguration.laden(configFile, false);
+            }
+        } catch (IOException | RuntimeException e) {
+            elakStartfehler = e.getMessage();
+            LOG.log(Level.SEVERE, "ELAK-Konfiguration fehlerhaft", e);
+        }
+        ElakKonfiguration elak = elakKonfig;
         Path updateDir = cfg.outputDir().resolve("updates");
         UpdateService updates = new UpdateService(cfg.updateUrl(), version,
                 cfg.updateAktiv() ? Signatur.eingebauterSchluessel() : null, updateDir);
         String[] verfuegbar = new String[1];
         TrayController[] controller = new TrayController[1];
         AwtTrayView[] view = new AwtTrayView[1];
-        AwtTrayView.Aktionen aktionen = new AwtTrayView.Aktionen() {
+        TrayAktionen aktionen = new TrayAktionen() {
             @Override
             public void jetztAbholen() {
-                executor.execute(controller[0]::abholen);
+                executor.execute(() -> {
+                    controller[0].abholen();
+                    elakSchritt();
+                });
             }
 
             @Override
             public void eingangOeffnen() {
                 oeffne(cfg.outputDir());
                 controller[0].eingangGeoeffnet();
+            }
+
+            @Override
+            public void zuordnen() {
+                executor.execute(() -> zuordnungAnzeigen(true));
+            }
+
+            /** Öffnet das Zuordnungsfenster, wenn etwas wartet. */
+            private void zuordnungAnzeigen(boolean manuell) {
+                if (elak == null) {
+                    if (manuell) {
+                        view[0].meldung(TITEL, "Die ELAK-Übergabe ist nicht eingerichtet (elak.benutzer in der Konfiguration).", false);
+                    }
+                    return;
+                }
+                try {
+                    List<Warteliste.Eintrag> offen = warteliste.wartenAufZuordnung();
+                    if (offen.isEmpty()) {
+                        if (manuell) {
+                            view[0].meldung(TITEL, "Keine Zustellungen warten auf Zuordnung.", false);
+                        }
+                        return;
+                    }
+                    ZuordnungsDialog.zeigen(offen, ergebnis -> executor.execute(() -> {
+                        try {
+                            for (var e : ergebnis.entrySet()) {
+                                warteliste.zuordnen(e.getKey(), e.getValue());
+                            }
+                        } catch (IOException ex) {
+                            LOG.log(Level.SEVERE, "Zuordnung konnte nicht gespeichert werden", ex);
+                        }
+                        elakUebergeben();
+                    }));
+                } catch (IOException e) {
+                    LOG.log(Level.SEVERE, "Warteliste nicht lesbar", e);
+                }
+            }
+
+            @Override
+            public void elakSchritt() {
+                if (elak == null) {
+                    return;
+                }
+                elakUebergeben();
+                zuordnungAnzeigen(false);
+            }
+
+            private void elakUebergeben() {
+                String fehler = null;
+                try {
+                    ElakUebergabe.Ergebnis r = new ElakUebergabe(elak,
+                            () -> new ElakClient(elak.url(), java.time.Duration.ofSeconds(120))).uebergeben(warteliste);
+                    if (r.uebergeben() > 0) {
+                        view[0].meldung(TITEL, r.uebergeben() + " Dokument(e) an den ELAK übergeben.", false);
+                    }
+                    if (r.fehler() > 0) {
+                        fehler = r.fehler() + " Datei(en) nicht übergeben – " + r.ersterFehler();
+                    }
+                } catch (IOException | RuntimeException e) {
+                    LOG.log(Level.SEVERE, "ELAK-Übergabe fehlgeschlagen", e);
+                    fehler = e.getMessage();
+                }
+                int wartend = 0;
+                try {
+                    wartend = warteliste.wartenAufZuordnung().size();
+                } catch (IOException e) {
+                    LOG.log(Level.WARNING, "Warteliste nicht lesbar", e);
+                }
+                controller[0].elakStatus(wartend, fehler);
             }
 
             @Override
@@ -204,9 +293,29 @@ public final class TrayApp {
         long minuten = Math.max(1, cfg.pollInterval().toMinutes());
         LOG.info(() -> "Programm im Infobereich gestartet (Version " + version + "), Abholung alle " + minuten + " Minuten"
                 + (updates.aktiv() ? ", tägliche Update-Prüfung" : ", Updates deaktiviert"));
-        executor.scheduleWithFixedDelay(controller[0]::abholen, 0, minuten, TimeUnit.MINUTES);
+        if (elak != null) {
+            controller[0].setNachSpeichern((z, ordner) -> {
+                try {
+                    warteliste.hinzufuegen(z, ordner);
+                } catch (IOException e) {
+                    LOG.log(Level.SEVERE, "Zustellung konnte nicht in die ELAK-Warteliste aufgenommen werden", e);
+                }
+            });
+        }
+        if (elakStartfehler != null) {
+            controller[0].elakStatus(0, elakStartfehler);
+        }
+        executor.scheduleWithFixedDelay(() -> {
+            controller[0].abholen();
+            aktionen.elakSchritt();
+        }, 0, minuten, TimeUnit.MINUTES);
         executor.scheduleWithFixedDelay(aktionen::updateSuchenAutomatisch, 2, 24 * 60, TimeUnit.MINUTES);
         return 0;
+    }
+
+    /** Aktionen des Menüs plus der ELAK-Schritt nach jeder Abholung. */
+    private interface TrayAktionen extends AwtTrayView.Aktionen {
+        void elakSchritt();
     }
 
     private static Path eigeneJar() throws Exception {
