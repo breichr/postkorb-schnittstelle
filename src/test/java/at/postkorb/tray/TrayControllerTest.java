@@ -158,6 +158,22 @@ class TrayControllerTest {
     }
 
     @Test
+    void neuePostIstErledigtSobaldAllesFuerDenElakZugeordnet() {
+        post("Z1", "Bezirksgericht Zwettl", "Beschluss", "nonRSa");
+        controller.abholen();
+        controller.elakStatus(1, null);
+        assertEquals(Zustand.NEUE_POST, zustand);
+        assertTrue(tooltip.contains("warten auf Zuordnung"), tooltip);
+
+        controller.elakStatus(0, null); // im Zuordnungsfenster übernommen
+        assertEquals(Zustand.OK, zustand);
+
+        controller.abholen(); // nichts Neues – bleibt grün
+        controller.elakStatus(0, null);
+        assertEquals(Zustand.OK, zustand);
+    }
+
+    @Test
     void rsaWirdHervorgehoben() {
         post("Z1", "Finanzamt Österreich", "Bescheid", "nonRSa");
         post("Z2", "Bezirksgericht Zwettl", "Beschluss", "RSa");
