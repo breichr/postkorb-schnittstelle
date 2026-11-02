@@ -133,7 +133,7 @@ Ein Symbol neben der Uhr, das beim Anmelden startet, beim Start und danach alle
 | Symbol | Bedeutung |
 |---|---|
 | 🟩 grün | alles in Ordnung |
-| 🟦 blau | neue Post seit dem letzten Öffnen des Eingangs |
+| 🟦 blau | neue Post seit dem letzten Öffnen des Eingangs oder Zustellungen, die auf die ELAK-Zuordnung warten (wird grün, sobald alles zugeordnet ist) |
 | ⬜ grau | Abholung läuft gerade |
 | 🟧 orange | Warnung, z. B. Client-Zertifikat läuft in weniger als 30 Tagen ab |
 | 🟥 rot | Fehler (keine Verbindung, Zertifikat abgelaufen, Zustellung fehlgeschlagen …) |

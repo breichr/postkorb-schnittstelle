@@ -82,10 +82,16 @@ public final class TrayController {
         this.nachSpeichern = nachSpeichern;
     }
 
-    /** Stand der ELAK-Übergabe: wartende Zuordnungen und ggf. ein Fehler (null = in Ordnung). */
+    /**
+     * Stand der ELAK-Übergabe: wartende Zuordnungen und ggf. ein Fehler (null = in Ordnung).
+     * Sobald nichts mehr auf Zuordnung wartet, gilt auch die neue Post als erledigt.
+     */
     public synchronized void elakStatus(int wartend, String fehler) {
         if (fehler != null && !fehler.equals(elakFehler)) {
             view.meldung("USP Postkorb – Übergabe an den ELAK fehlgeschlagen", fehler, true);
+        }
+        if (elakWartend > 0 && wartend == 0) {
+            ungelesen = 0; // alles zugeordnet – neue Post gilt als erledigt
         }
         elakWartend = wartend;
         elakFehler = fehler;
